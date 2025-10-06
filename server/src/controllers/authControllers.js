@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import User from "../models/user.js";
 import cloudinary from "../api/cloudinary.js";
 import bcrypt from "bcryptjs";
+import { generateToken } from "../utils/jwt.js";
 
 export const signup = asyncHandler(async (req, res) => {
 	const {
@@ -85,7 +86,7 @@ export const signup = asyncHandler(async (req, res) => {
 	});
 
 	newUser.save();
-
+	generateToken(newUser._id, res);
 	const userResponse = newUser.toObject();
 	delete userResponse.password;
 	res.status(200).json({ message: "User created", userResponse });
@@ -107,4 +108,24 @@ export const signin = asyncHandler(async (req, res) => {
 	if (!user) {
 		return res.status(404).json({ message: "User not found" });
 	}
+
+	if (!bcrypt.compare(password, user.password)) {
+		return res.status(400).json({ message: "Invalid credentials" });
+	}
+
+	const userResponse = user.toObject();
+	delete userResponse.password;
+
+	generateToken(user._id, res);
+	res.status(200).json({ message: "Logged in successfully", user });
+});
+
+export const logout = asyncHandler(async (req, res) => {
+	res.cookie("jwt", "", {
+		maxAge: 0,
+		httpOnly: true,
+		sameSite: "strict",
+		secure: process.env.NODE_ENV !== "development",
+	});
+	res.status(200).json({ message: "Logged out successfully" });
 });
