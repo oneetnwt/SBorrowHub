@@ -24,6 +24,6 @@ app.use("/auth", authRoutes);
 // Running a server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-	console.log(`Server started on port ${PORT}`);
-	connectDB();
+  console.log(`Server started on port ${PORT}`);
+  connectDB();
 });
