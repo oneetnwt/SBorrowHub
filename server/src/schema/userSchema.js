@@ -24,4 +24,7 @@ export const createUserSchema = z
 		path: ["confirmpassword"],
 	});
 
-export const signupSchema = z.object({});
+export const signupSchema = z
+.object({
+	
+});
