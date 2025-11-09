@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.7",
@@ -19,8 +20,13 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "express-session": "^1.18.2",
+    "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.19.2",
+    "mongoose": "^8.19.3",
+    "nodemailer": "^7.0.10",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
