@@ -63,7 +63,7 @@ function BorrowCart() {
             <div className="md:col-span-2 space-y-3 overflow-y-auto pr-2">
               {cartItems.map((item) => (
                 <div
-                  key={item.id}
+                  key={item._id}
                   className="bg-white rounded-lg shadow-sm p-4 border border-black/10 flex gap-4 hover:shadow-md transition-shadow"
                 >
                   {/* Item Image */}

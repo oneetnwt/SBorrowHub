@@ -7,11 +7,13 @@ import {
   forgotPasswordSchema,
   loginSchema,
   signupSchema,
+  updateProfileSchema,
 } from "../schema/userSchema.js";
 import { appAssert } from "../errors/appAssert.js";
 import UserModel from "../models/user.js";
 import { generateToken } from "../utils/jwt.js";
 import { sendMail } from "../utils/smtp.js";
+import cloudinary from "../api/cloudinary.js";
 
 /**
  * @route POST /auth/signup
@@ -35,7 +37,9 @@ export const signup = asyncHandler(async (req, res) => {
 
   let profilePicture;
   if (!body.profilePicture) {
-    profilePicture = `https://placehold.co/400x400?text=${body.firstname[0]}+${body.lastname[0]}`;
+    profilePicture = `https://placehold.co/400x400/be8443/FFFFFF?text=${body.firstname[0]}+${body.lastname[0]}`;
+  } else {
+    profilePicture = body.profilePicture;
   }
 
   const newUser = new UserModel({
@@ -51,6 +55,7 @@ export const signup = asyncHandler(async (req, res) => {
   });
 
   await newUser.save();
+
   generateToken(newUser._id, res);
 
   res.status(201).json({
@@ -87,6 +92,60 @@ export const login = asyncHandler(async (req, res) => {
 export const logout = asyncHandler(async (req, res) => {
   res.clearCookie("jwt");
   res.status(200).json({ message: "Logout successful" });
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+  const body = updateProfileSchema.parse(req.body);
+
+  const user = await UserModel.findById(req.user._id);
+  appAssert(user, "User not found", 404);
+
+  // Update profile fields if provided
+  if (body.firstname) user.firstname = body.firstname;
+  if (body.lastname) user.lastname = body.lastname;
+  if (body.email) {
+    // Check if email is already taken by another user
+    const existingUser = await UserModel.findOne({
+      email: body.email,
+      _id: { $ne: user._id },
+    });
+    appAssert(!existingUser, "Email already in use", 409);
+    user.email = body.email;
+  }
+  if (body.phoneNumber) user.phoneNumber = body.phoneNumber;
+  if (body.college) user.college = body.college;
+  if (body.department) user.department = body.department;
+
+  // Handle profile picture
+  if (body.profilePicture) {
+    try {
+      const uploadResponse = await cloudinary.uploader.upload(
+        body.profilePicture,
+        {
+          folder: "profile_pictures",
+          transformation: [
+            { width: 400, height: 400, crop: "fill", gravity: "face" },
+          ],
+        }
+      );
+      user.profilePicture = uploadResponse.secure_url;
+    } catch (cloudinaryError) {
+      console.error("Cloudinary Error:", cloudinaryError);
+      return res
+        .status(500)
+        .json({ message: "Failed to upload profile image" });
+    }
+  } else if (body.firstname && body.lastname) {
+    // Generate new placeholder if names are updated
+    user.profilePicture = `https://placehold.co/400x400?text=${body.firstname[0]}+${body.lastname[0]}`;
+  }
+
+  await user.save();
+
+  res.status(200).json({
+    message: "Profile updated successfully",
+    user: user.omitPassword(),
+  });
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
@@ -342,4 +401,8 @@ export const verifyCaptcha = asyncHandler(async (req, res) => {
   appAssert(isRecaptchaValid, "Invalid recaptcha token", 400);
 
   res.status(200).json({ success: true });
+});
+
+export const checkRole = asyncHandler(async (req, res) => {
+  res.status(200).json(req.user.role);
 });

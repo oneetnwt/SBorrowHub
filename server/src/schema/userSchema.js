@@ -34,3 +34,15 @@ export const forgotPasswordSchema = z.object({
     .string()
     .min(PASSWORD_LENGTH, "Password must have at least 8 characters"),
 });
+
+export const updateProfileSchema = z.object({
+  firstname: z.string().min(1, "Please provide a firstname").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  phoneNumber: z
+    .string()
+    .regex(/^\d{11}$/, "Phone number must be 11 digits")
+    .optional(),
+  college: z.string().optional(),
+  department: z.string().optional(),
+  profilePicture: z.string().optional(),
+});

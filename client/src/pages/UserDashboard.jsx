@@ -1,55 +1,99 @@
-import React, { useState } from "react";
-import InformationCard from "../components/InformationCard";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import InformationCard from "../components/InformationCard";
+import axiosInstance from "../api/axiosInstance";
 
 function UserDashboard() {
-  // Mock data for demonstration
-  const [pendingRequests] = useState([
-    {
-      id: 1,
-      name: "Extension Wire",
-      image: "https://hbw.ph/wp-content/uploads/2017/10/9948-BLACK-2-1.jpg",
-      requestDate: "October 24, 2025",
-      status: "Pending for Approval",
-    },
-    {
-      id: 2,
-      name: "Scientific Calculator",
-      image: "https://hbw.ph/wp-content/uploads/2017/10/9948-BLACK-2-1.jpg",
-      requestDate: "October 26, 2025",
-      status: "Pending for Approval",
-    },
-  ]);
+  const [data, setData] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [borrowedItems, setBorrowedItems] = useState([]);
+  const [overdueItems, setOverdueItems] = useState([]);
+  const [returnedThisMonth, setReturnedThisMonth] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [activeBorrows] = useState([
-    {
-      id: 1,
-      name: "Extension Wire",
-      image: "https://hbw.ph/wp-content/uploads/2017/10/9948-BLACK-2-1.jpg",
-      dueDate: "November 8, 2025",
-      status: "Due in 3 days",
-      statusColor: "warning",
-    },
-    {
-      id: 2,
-      name: "Arduino Kit",
-      image: "https://hbw.ph/wp-content/uploads/2017/10/9948-BLACK-2-1.jpg",
-      dueDate: "November 3, 2025",
-      status: "Overdue",
-      statusColor: "error",
-    },
-  ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosInstance.get("/catalog/get-request-item");
+        console.log("Fetching Data");
 
-  const [recentActivity] = useState([
-    { id: 1, action: "Returned", item: "USB-C Hub", date: "2 hours ago" },
-    { id: 2, action: "Borrowed", item: "HDMI Cable", date: "1 day ago" },
-    {
-      id: 3,
-      action: "Requested",
-      item: "Whiteboard Marker",
-      date: "2 days ago",
-    },
-  ]);
+        if (response.status === 200) {
+          console.log("Data Fetched");
+
+          const fetched = response.data;
+          setData(fetched);
+
+          // Separate pending and borrowed items
+          const pending = fetched.filter((r) => r.status === "pending");
+          const borrowed = fetched.filter(
+            (r) => r.status === "borrowed" || r.status === "approved"
+          );
+          const overdue = fetched.filter((r) => {
+            if (r.status === "borrowed" && r.returnDate) {
+              return new Date(r.returnDate) < new Date();
+            }
+            return false;
+          });
+          const returned = fetched.filter((r) => {
+            if (r.status === "returned" && r.returnDate) {
+              const returnMonth = new Date(r.returnDate).getMonth();
+              const currentMonth = new Date().getMonth();
+              return returnMonth === currentMonth;
+            }
+            return false;
+          });
+
+          setPendingRequests(pending);
+          setBorrowedItems(borrowed);
+          setOverdueItems(overdue);
+          setReturnedThisMonth(returned);
+
+          // Transform borrow requests into recent activities (most recent 5)
+          const activities = fetched.slice(0, 5).map((request) => ({
+            id: request._id,
+            action: getActivityAction(request.status),
+            item: request.itemId?.name || "Unknown Item",
+            date: request.createdAt || request.borrowDate,
+            status: request.status,
+          }));
+
+          setRecentActivities(activities);
+        } else {
+          console.log("No data");
+        }
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const getActivityAction = (status) => {
+    const actions = {
+      pending: "Requested",
+      approved: "Approved for",
+      rejected: "Rejected for",
+      borrowed: "Borrowed",
+      returned: "Returned",
+    };
+    return actions[status] || "Activity on";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   const getStatusColor = (color) => {
     const colors = {
@@ -70,10 +114,26 @@ function UserDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <InformationCard name="Active Borrows" icon="inventory" data="5" />
-        <InformationCard name="Pending Request" icon="borrow" data="2" />
-        <InformationCard name="Overdue Items" icon="dashboard" data="1" />
-        <InformationCard name="Returned this Month" icon="history" data="10" />
+        <InformationCard
+          name="Active Borrows"
+          icon="inventory"
+          data={borrowedItems.length}
+        />
+        <InformationCard
+          name="Pending Request"
+          icon="borrow"
+          data={pendingRequests.length}
+        />
+        <InformationCard
+          name="Overdue Items"
+          icon="dashboard"
+          data={overdueItems.length}
+        />
+        <InformationCard
+          name="Returned this Month"
+          icon="history"
+          data={returnedThisMonth.length}
+        />
       </div>
 
       {/* Main Content */}
@@ -84,7 +144,7 @@ function UserDashboard() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-bold text-lg">Pending Requests</h2>
               <Link
-                to="/requests"
+                to="/profile/transactions"
                 className="text-(--accent) hover:text-(--accent-dark) font-semibold text-sm"
               >
                 View all
@@ -92,28 +152,29 @@ function UserDashboard() {
             </div>
             <div className="space-y-3">
               {pendingRequests.length > 0 ? (
-                pendingRequests.map((request) => (
+                pendingRequests.slice(0, 3).map((request) => (
                   <div
-                    key={request.id}
+                    key={request._id}
                     className="flex gap-3 border border-black/10 p-3 rounded-lg hover:shadow-sm transition-shadow"
                   >
                     <img
-                      src={request.image}
-                      alt={request.name}
+                      src={request.itemId?.image}
+                      alt={request.itemId?.name}
                       className="w-20 h-20 object-cover border border-black/10 rounded-md shrink-0"
                     />
                     <div className="flex flex-col justify-between flex-1">
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {request.name}
+                          {request.itemId?.name}
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
-                          {request.requestDate}
+                          {formatDate(request.borrowDate)}
                         </p>
                       </div>
                       <div className="self-end">
                         <span className="px-3 py-1 bg-(--info) text-white text-xs rounded-full font-medium">
-                          {request.status}
+                          {request.status.charAt(0).toUpperCase() +
+                            request.status.slice(1)}
                         </span>
                       </div>
                     </div>
@@ -139,24 +200,24 @@ function UserDashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {activeBorrows.length > 0 ? (
-                activeBorrows.map((borrow) => (
+              {borrowedItems.length > 0 ? (
+                borrowedItems.slice(0, 3).map((borrow) => (
                   <div
-                    key={borrow.id}
+                    key={borrow._id}
                     className="flex gap-3 border border-black/10 p-3 rounded-lg hover:shadow-sm transition-shadow"
                   >
                     <img
-                      src={borrow.image}
-                      alt={borrow.name}
+                      src={borrow.itemId?.image}
+                      alt={borrow.itemId?.name}
                       className="w-20 h-20 object-cover border border-black/10 rounded-md shrink-0"
                     />
                     <div className="flex flex-col justify-between flex-1">
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {borrow.name}
+                          {borrow.itemId?.name}
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
-                          Due: {borrow.dueDate}
+                          Due: {formatDate(borrow.returnDate)}
                         </p>
                       </div>
                       <div className="self-end">
@@ -165,14 +226,15 @@ function UserDashboard() {
                             borrow.statusColor
                           )}`}
                         >
-                          {borrow.status}
+                          {borrow.status.charAt(0).toUpperCase() +
+                            borrow.status.slice(1)}
                         </span>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="flex items-center justify-center text-center py-8 text-gray-500 w-full">
                   <p className="text-sm">No active borrows</p>
                 </div>
               )}
@@ -186,36 +248,44 @@ function UserDashboard() {
           <div className="md:col-span-2 bg-white rounded-lg shadow-sm border border-black/10 p-4">
             <h2 className="font-bold text-lg mb-4">Recent Activity</h2>
             <div className="space-y-3">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="w-10 h-10 rounded-full bg-(--accent)/10 flex items-center justify-center shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-(--accent)"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
+                  <div
+                    key={activity._id || activity.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-(--accent)/10 flex items-center justify-center shrink-0">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-(--accent)"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">
+                        <span className="font-semibold">{activity.action}</span>{" "}
+                        {activity.item}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDate(activity.date)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">
-                      <span className="font-semibold">{activity.action}</span>{" "}
-                      {activity.item}
-                    </p>
-                    <p className="text-xs text-gray-500">{activity.date}</p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No recent activities</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

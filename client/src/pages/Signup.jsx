@@ -11,6 +11,7 @@ function Signup() {
   const recaptchaRef = useRef(null);
   const [captchaValue, setCaptchaValue] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
@@ -98,6 +99,7 @@ function Signup() {
     }
 
     try {
+      setLoading(true);
       // Verify CAPTCHA first
       const captchaRes = await axiosInstance.post("/auth/verify-captcha", {
         token: captchaValue,
@@ -136,6 +138,8 @@ function Signup() {
         recaptchaRef.current.reset();
       }
       setCaptchaValue(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -489,14 +493,36 @@ function Signup() {
         {/* Submit Button - Outside scrollable area */}
         <button
           type="submit"
-          className={`w-full py-2 px-4 rounded-xl font-semibold text-white ${
-            !formData.agreeToTerms
+          className={`w-full py-2 px-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 ${
+            !formData.agreeToTerms || loading
               ? "bg-linear-to-r from-(--neutral-400) to-(--neutral-300)"
               : "bg-linear-to-r from-(--primary) to-(--accent) hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
           }`}
-          disabled={!formData.agreeToTerms}
+          disabled={!formData.agreeToTerms || loading}
         >
-          Sign up
+          {loading && (
+            <svg
+              className="animate-spin h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          )}
+          {loading ? "Creating account..." : "Sign up"}
         </button>
       </form>
 

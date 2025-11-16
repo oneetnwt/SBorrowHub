@@ -12,10 +12,26 @@ import Profile from "./pages/Profile";
 import TransactionHistory from "./pages/TransactionHistory";
 import UserSettings from "./pages/UserSettings";
 import Authentication from "./pages/Authentication";
-import ProtectedRoute from "./components/protectedRoute";
 import Signup from "./pages/Signup";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Officer from "./pages/officer/Officer";
+import OfficerDashboard from "./pages/officer/OfficerDashboard";
+import OfficerAnalytics from "./pages/officer/OfficerAnalytics";
+import OfficerInventory from "./pages/officer/OfficerInventory";
+import OfficerRequests from "./pages/officer/OfficerRequests";
+import OfficerSettings from "./pages/officer/OfficerSettings";
+import OfficerTransactions from "./pages/officer/OfficerTransactions";
+import OfficerUsers from "./pages/officer/OfficerUsers";
+import ProtectedRoute from "./components/ProtectedRoute";
+import OfficerProtectedRoute from "./components/OfficerProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import Admin from "./pages/admin/Admin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminPermissionControl from "./pages/admin/AdminPermissionControl";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminFeedback from "./pages/admin/AdminFeedback";
+import AdminTransactions from "./pages/admin/AdminTransactions";
 
 function Route() {
   const routes = createBrowserRouter([
@@ -92,6 +108,74 @@ function Route() {
     {
       path: "/privacy",
       element: <PrivacyPolicy />,
+    },
+    {
+      path: "/officer",
+      element: (
+        <OfficerProtectedRoute>
+          <Officer />
+        </OfficerProtectedRoute>
+      ),
+      children: [
+        {
+          path: "",
+          element: <OfficerDashboard />,
+        },
+        {
+          path: "inventory",
+          element: <OfficerInventory />,
+        },
+        {
+          path: "requests",
+          element: <OfficerRequests />,
+        },
+        {
+          path: "transactions",
+          element: <OfficerTransactions />,
+        },
+        {
+          path: "users",
+          element: <OfficerUsers />,
+        },
+        {
+          path: "analytics",
+          element: <OfficerAnalytics />,
+        },
+        {
+          path: "settings",
+          element: <OfficerSettings />,
+        },
+      ],
+    },
+    {
+      path: "/admin",
+      element: (
+        <AdminProtectedRoute>
+          <Admin />
+        </AdminProtectedRoute>
+      ),
+      children: [
+        {
+          path: "",
+          element: <AdminDashboard />,
+        },
+        {
+          path: "permission-control",
+          element: <AdminPermissionControl />,
+        },
+        {
+          path: "users",
+          element: <AdminUsers />,
+        },
+        {
+          path: "feedback",
+          element: <AdminFeedback />,
+        },
+        {
+          path: "transactions",
+          element: <AdminTransactions />,
+        },
+      ],
     },
   ]);
 

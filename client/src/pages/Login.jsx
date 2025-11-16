@@ -13,6 +13,9 @@ function Login() {
     password: "",
   });
 
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
@@ -25,7 +28,8 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setErrorMsg("");
+    setLoading(true);
     try {
       const { status, data } = await axiosInstance.post(
         "/auth/login",
@@ -33,13 +37,16 @@ function Login() {
       );
 
       if (status === 200) {
-        // Extract the user object from the response
         setUser(data.user);
+        setLoading(false);
         navigate("/");
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert(error.response?.data?.message || "Login failed. Please try again.");
+      const msg =
+        error.response?.data?.message || "Login failed. Please try again.";
+      setErrorMsg(msg);
+      setLoading(false);
     }
   };
 
@@ -162,12 +169,44 @@ function Login() {
           </Link>
         </div>
 
+        {/* Login error message */}
+        {errorMsg && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-100 p-2 rounded-md">
+            {errorMsg}
+          </div>
+        )}
+
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-linear-to-r from-(--primary) to-(--accent) text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-(--primary) focus:ring-offset-2"
+          disabled={loading}
+          className={`w-full bg-linear-to-r from-(--primary) to-(--accent) text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-(--primary) focus:ring-offset-2 flex items-center justify-center gap-2 ${
+            loading ? "opacity-60 cursor-wait" : ""
+          }`}
         >
-          Sign In
+          {loading && (
+            <svg
+              className="animate-spin h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          )}
+          {loading ? "Signing in..." : "Sign In"}
         </button>
       </form>
 

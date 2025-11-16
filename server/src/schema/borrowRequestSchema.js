@@ -1,7 +1,6 @@
 import z from "zod";
 
 export const borrowRequestSchema = z.object({
-  borrowerId: z.string().min(1, "Borrower ID is required"),
   itemId: z.string().min(1, "Item ID is required"),
   quantity: z.number().int().positive("Quantity must be a positive number"),
   borrowDate: z.string().min(1, "Borrow date is required"),

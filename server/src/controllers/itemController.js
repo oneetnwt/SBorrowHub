@@ -6,6 +6,8 @@ import { appAssert } from "../errors/appAssert.js";
 import { borrowRequestSchema } from "../schema/borrowRequestSchema.js";
 import BorrowRequestModel from "../models/borrowRequest.js";
 import { generateRequestCode } from "../utils/generateRequestCode.js";
+import { checkItemAvailability } from "../utils/checkItemAvailability.js";
+import { broadcastActivity } from "../server.js";
 
 export const addItem = asyncHandler(async (req, res) => {
   const body = itemSchema.parse(req.body);
@@ -59,15 +61,13 @@ export const updateItem = asyncHandler(async (req, res) => {
 
 export const createBorrowRequest = asyncHandler(async (req, res) => {
   const body = borrowRequestSchema.parse(req.body);
+  const userId = req.user._id;
 
-  // Verify item exists and has enough quantity
+  appAssert(userId, "User ID is required", 400);
+
+  // Verify item exists
   const item = await ItemModel.findById(body.itemId);
   appAssert(item, "Item not found", 404);
-  appAssert(
-    item.available >= body.quantity,
-    `Only ${item.available} items available`,
-    400
-  );
 
   // Validate dates
   const borrowDate = new Date(body.borrowDate);
@@ -82,13 +82,26 @@ export const createBorrowRequest = asyncHandler(async (req, res) => {
     400
   );
 
+  // Check availability for the requested date range
+  const availability = await checkItemAvailability(
+    body.itemId,
+    borrowDate,
+    returnDate
+  );
+
+  appAssert(
+    availability.available >= body.quantity,
+    `Only ${availability.available} item(s) available for the selected dates. ${availability.borrowedCount} already borrowed during this period.`,
+    400
+  );
+
   // Generate unique request code
   const requestCode = generateRequestCode();
 
   // Create borrow request
   const borrowRequest = new BorrowRequestModel({
     requestCode,
-    borrowerId: body.borrowerId,
+    borrowerId: userId,
     itemId: body.itemId,
     quantity: body.quantity,
     borrowDate: borrowDate,
@@ -100,8 +113,84 @@ export const createBorrowRequest = asyncHandler(async (req, res) => {
 
   await borrowRequest.save();
 
+  // Populate the data for WebSocket broadcast
+  await borrowRequest.populate(
+    "borrowerId",
+    "firstname lastname profilePicture email"
+  );
+  await borrowRequest.populate("itemId", "name image");
+
+  // Broadcast new pending request to all connected officers via WebSocket
+  broadcastActivity({
+    type: "pendingRequest",
+    data: borrowRequest,
+  });
+
   res.status(201).json({
     message: "Borrow request submitted successfully",
     borrowRequest,
   });
+});
+
+export const getRequestItem = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  appAssert(userId, "No User ID found", 404);
+
+  const items = await BorrowRequestModel.find({ borrowerId: userId }).populate(
+    "itemId",
+    "name tags image status"
+  );
+
+  res.status(200).json(items);
+});
+
+export const getLowStock = asyncHandler(async (req, res) => {
+  const item = await ItemModel.find({ available: { $lte: 1 } });
+  res.status(200).json(item);
+});
+
+export const getItemsWithAvailability = asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  // Get all items
+  const items = await ItemModel.find();
+
+  // If no date range specified, return items with current availability
+  if (!startDate || !endDate) {
+    return res.status(200).json(items);
+  }
+
+  // Calculate availability for each item for the specified date range
+  const itemsWithAvailability = await Promise.all(
+    items.map(async (item) => {
+      try {
+        const availability = await checkItemAvailability(
+          item._id,
+          new Date(startDate),
+          new Date(endDate)
+        );
+
+        return {
+          ...item.toObject(),
+          availableForDateRange: availability.available,
+          borrowedForDateRange: availability.borrowedCount,
+          overlappingRequests: availability.overlappingRequests,
+        };
+      } catch (error) {
+        console.error(
+          `Error checking availability for item ${item._id}:`,
+          error
+        );
+        return {
+          ...item.toObject(),
+          availableForDateRange: item.available,
+          borrowedForDateRange: 0,
+          overlappingRequests: 0,
+        };
+      }
+    })
+  );
+
+  res.status(200).json(itemsWithAvailability);
 });

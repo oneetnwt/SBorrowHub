@@ -12,7 +12,7 @@ const itemSchema = mongoose.Schema(
       enum: ["available", "all_borrowed", "maintenance"],
       default: "available",
     },
-    tags: [{ type: String }],
+    category: { type: String, required: true, default: "others" },
     condition: {
       type: String,
       enum: ["Good", "Fair", "Needs Repair"],

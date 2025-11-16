@@ -75,7 +75,7 @@ function Logo() {
         </g>
       </svg>
       <h1 className="font-bold font-raleway text-2xl text-(--accent)">
-        SBorrowHub
+        SBOrrowHub
       </h1>
     </div>
   );

@@ -5,10 +5,12 @@ import {
   checkAuth,
   checkOtp,
   checkResetSession,
+  checkRole,
   login,
   logout,
   resetPassword,
   signup,
+  updateProfile,
   verifyCaptcha,
   verifyCode,
   verifyEmail,
@@ -28,6 +30,9 @@ router.post("/reset-password", resetPassword);
 router.get("/check-otp", checkOtp);
 router.get("/check-reset-session", checkResetSession);
 router.get("/check-auth", protectRoute, checkAuth);
+router.get("/check-role", protectRoute, checkRole);
+
+router.put("/update-profile", protectRoute, updateProfile);
 
 router.get(
   "/google",

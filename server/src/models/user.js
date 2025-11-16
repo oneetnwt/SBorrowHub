@@ -14,7 +14,11 @@ const userSchema = mongoose.Schema(
     googleId: { type: String, required: false, unique: true, sparse: true },
     role: { type: String, enum: ["user", "admin", "officer"], default: "user" },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
 userSchema.methods.omitPassword = function () {
@@ -24,6 +28,7 @@ userSchema.methods.omitPassword = function () {
 };
 
 userSchema.set("toJSON", {
+  virtuals: true,
   transform: function (doc, ret) {
     delete ret.password;
     return ret;

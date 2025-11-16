@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useUserStore } from "../store/user";
+import axiosInstance from "../api/axiosInstance";
+import { toast } from "react-hot-toast";
 
 function Profile() {
   const { user } = useUserStore();
+  const [loading, SetLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstname: "",
@@ -64,11 +67,50 @@ function Profile() {
     }
   };
 
-  const handleSave = () => {
-    // Update user data in store
-    // TODO: Add API call to save to backend
-    console.log("Saving profile data:", formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      SetLoading(true);
+      // Prepare data to send (only send changed fields)
+      const updateData = {};
+
+      if (formData.firstname !== user.firstname)
+        updateData.firstname = formData.firstname;
+      if (formData.lastname !== user.lastname)
+        updateData.lastname = formData.lastname;
+      if (formData.email !== user.email) updateData.email = formData.email;
+      if (formData.phoneNumber !== user.phoneNumber)
+        updateData.phoneNumber = formData.phoneNumber;
+      if (formData.college !== user.college)
+        updateData.college = formData.college;
+      if (formData.department !== user.department)
+        updateData.department = formData.department;
+      if (formData.profilePicture !== user.profilePicture)
+        updateData.profilePicture = formData.profilePicture;
+
+      // Only make API call if there are changes
+      if (Object.keys(updateData).length === 0) {
+        toast.error("No changes to save");
+        setIsEditing(false);
+        return;
+      }
+
+      const response = await axiosInstance.put(
+        "/auth/update-profile",
+        updateData
+      );
+
+      if (response.data.user) {
+        // Update user in store
+        useUserStore.getState().setUser(response.data.user);
+        toast.success(response.data.message || "Profile updated successfully");
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    } finally {
+      SetLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -129,7 +171,9 @@ function Profile() {
               <div className="relative group mb-4">
                 <div className="w-36 h-36 rounded-full bg-linear-to-br from-(--accent) to-(--accent)/70 p-1">
                   <img
-                    src={user.profilePicture}
+                    src={
+                      isEditing ? formData.profilePicture : user.profilePicture
+                    }
                     alt="Profile"
                     className="w-full h-full rounded-full object-cover bg-white"
                   />
@@ -485,7 +529,12 @@ function Profile() {
                 <div className="col-span-2 flex gap-3 pt-3 border-t border-black/10">
                   <button
                     onClick={handleSave}
-                    className="flex-1 bg-(--accent) hover:bg-(--accent)/90 text-white font-semibold py-2.5 px-4 rounded-lg transition-all hover:shadow-md flex items-center justify-center gap-2 text-sm"
+                    disabled={loading}
+                    className={`flex-1 flex items-center justify-center gap-2 text-sm text-white font-semibold py-2.5 px-4 rounded-lg transition-all hover:shadow-md ${
+                      loading
+                        ? "bg-(--neutral-300) hover:bg-(--neutral-400)"
+                        : " bg-(--accent) hover:bg-(--accent)/90"
+                    }`}
                   >
                     <svg
                       className="w-4 h-4"
@@ -500,7 +549,7 @@ function Profile() {
                         d="M5 13l4 4L19 7"
                       />
                     </svg>
-                    Save Changes
+                    {loading ? "Saving..." : "Save Changes"}
                   </button>
                   <button
                     onClick={handleCancel}

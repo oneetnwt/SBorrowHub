@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import axiosInstance from "../../api/axiosInstance";
+import toast from "react-hot-toast";
 
 function RequestForm({ isOpen, onClose, item }) {
+  const [loading, setLoading] = useState(false);
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   };
 
+  console.log(item?._id);
+
   const [formData, setFormData] = useState({
+    itemId: item?._id,
     itemName: item?.name || "",
     quantity: 1,
     borrowDate: getTodayDate(),
@@ -20,12 +25,13 @@ function RequestForm({ isOpen, onClose, item }) {
 
   const [errors, setErrors] = useState({});
 
-  // Update itemName when item changes
+  // Update itemId and itemName when item changes
   useEffect(() => {
-    if (item?.name) {
+    if (item) {
       setFormData((prev) => ({
         ...prev,
-        itemName: item.name,
+        itemId: item._id,
+        itemName: item.name || "",
       }));
     }
   }, [item]);
@@ -87,25 +93,37 @@ function RequestForm({ isOpen, onClose, item }) {
     e.preventDefault();
 
     if (validateForm()) {
-      const res = await axiosInstance.post("/catalog/request-item", formData);
+      try {
+        setLoading(true);
+        const res = await axiosInstance.post("/catalog/request-item", formData);
 
-      if (res.status === 200) {
-        setFormData({
-          itemName: item?.name || "",
-          quantity: 1,
-          borrowDate: getTodayDate(),
-          returnDate: "",
-          purpose: "",
-          notes: "",
-        });
-        setErrors({});
-        onClose();
+        if (res.status === 201 || res.status === 200) {
+          toast.success("Borrow request submitted successfully!");
+          setFormData({
+            itemId: item?._id,
+            itemName: item?.name || "",
+            quantity: 1,
+            borrowDate: getTodayDate(),
+            returnDate: "",
+            purpose: "",
+            notes: "",
+          });
+          setErrors({});
+          onClose();
+        }
+      } catch (error) {
+        toast.error(
+          error.response?.data?.message || "Failed to submit request"
+        );
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const handleCancel = () => {
     setFormData({
+      itemId: item?._id,
       itemName: item?.name || "",
       quantity: 1,
       borrowDate: getTodayDate(),
@@ -295,9 +313,13 @@ function RequestForm({ isOpen, onClose, item }) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm bg-(--accent) hover:bg-(--accent-dark) rounded-lg text-white font-medium transition-colors"
+                className={`px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${
+                  loading
+                    ? "bg-(--neutral-500)"
+                    : "bg-(--accent) hover:bg-(--accent-dark)"
+                }`}
               >
-                Submit Request
+                {loading ? "Requesting Item" : "Submit Request"}
               </button>
             </div>
           </form>
