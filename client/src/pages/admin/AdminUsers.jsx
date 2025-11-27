@@ -51,13 +51,11 @@ function AdminUsers() {
 
   const getRoleBadge = (role) => {
     const badges = {
-      student: "bg-blue-100 text-blue-700",
-      faculty: "bg-purple-100 text-purple-700",
-      staff: "bg-orange-100 text-orange-700",
+      user: "bg-blue-100 text-blue-700",
       officer: "bg-green-100 text-green-700",
       admin: "bg-red-100 text-red-700",
     };
-    return badges[role] || badges.student;
+    return badges[role] || badges.user;
   };
 
   const filteredUsers = users.filter((user) => {
@@ -88,7 +86,7 @@ function AdminUsers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
           <p className="text-gray-500 text-xs mb-0.5">Total Users</p>
           <p className="text-2xl font-bold text-gray-900">{users.length}</p>
@@ -100,15 +98,9 @@ function AdminUsers() {
           </p>
         </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
-          <p className="text-blue-600 text-xs mb-0.5">Students</p>
+          <p className="text-blue-600 text-xs mb-0.5">Users</p>
           <p className="text-2xl font-bold text-blue-700">
-            {users.filter((u) => u.role === "student").length}
-          </p>
-        </div>
-        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200 shadow-sm">
-          <p className="text-purple-600 text-xs mb-0.5">Faculty</p>
-          <p className="text-2xl font-bold text-purple-700">
-            {users.filter((u) => u.role === "faculty").length}
+            {users.filter((u) => u.role === "user").length}
           </p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
@@ -152,9 +144,7 @@ function AdminUsers() {
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
           >
             <option value="all">All Roles</option>
-            <option value="student">Student</option>
-            <option value="faculty">Faculty</option>
-            <option value="staff">Staff</option>
+            <option value="user">User</option>
             <option value="officer">Officer</option>
             <option value="admin">Admin</option>
           </select>

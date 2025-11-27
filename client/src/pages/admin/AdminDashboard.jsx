@@ -9,36 +9,32 @@ import { useUserStore } from "../../store/user";
 function AdminDashboard() {
   const { user } = useUserStore((state) => state.user);
   const { isConnected, lastMessage } = useWebSocket(user?._id);
-
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalOfficers: 0,
-    totalItems: 0,
-    pendingRequests: 0,
-    activeLoans: 0,
-    systemAlerts: 0,
-  });
+  const [officer, setOfficer] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [userGrowth, setUserGrowth] = useState([]);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
 
   // Fetch all dashboard data on mount
   useEffect(() => {
     const fetchAllDashboardData = async () => {
-      setLoading(true);
       try {
-        const [statsRes, alertsRes, activityRes] = await Promise.all([
-          axiosInstance.get("/admin/dashboard-stats"),
-          axiosInstance.get("/admin/system-alerts"),
-          axiosInstance.get("/admin/recent-activity"),
-        ]);
+        const [officer, user] = [
+          await axiosInstance.get("/admin/officer"),
+          await axiosInstance.get("/admin/get-all-users"),
+        ];
 
-        setStats(statsRes.data);
-        setSystemAlerts(alertsRes.data);
-        setRecentActivity(activityRes.data);
+        setOfficer(officer.data);
+        setUsers(user.data);
+
+        // Fetch initial active users count
+        const usersRes = await axiosInstance.get("/admin/get-all-users");
+        const activeCount = usersRes.data.filter((u) => u.isOnline).length;
+        setActiveUsersCount(activeCount);
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.log("Unable to fetch data");
       } finally {
         setLoading(false);
       }
@@ -58,6 +54,9 @@ function AdminDashboard() {
           ...prev,
           systemAlerts: prev.systemAlerts + 1,
         }));
+      } else if (lastMessage.type === "active_users_update") {
+        // Update active users count in real-time
+        setActiveUsersCount(lastMessage.count);
       }
     }
   }, [lastMessage]);
@@ -197,35 +196,27 @@ function AdminDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <InformationCard name="Total Users" icon="users" data={users.length} />
         <InformationCard
-          name="Total Users"
+          name="Active Users"
           icon="users"
-          data={stats.totalUsers}
+          data={activeUsersCount}
         />
-        <InformationCard
-          name="Officers"
-          icon="users"
-          data={stats.totalOfficers}
-        />
+        <InformationCard name="Officers" icon="users" data={officer.length} />
         <InformationCard
           name="Total Items"
           icon="inventory"
-          data={stats.totalItems}
+          // data={stats?.totalItems}
         />
         <InformationCard
           name="Pending Requests"
           icon="borrow"
-          data={stats.pendingRequests}
+          // data={stats?.pendingRequests}
         />
         <InformationCard
           name="Active Loans"
           icon="list"
-          data={stats.activeLoans}
-        />
-        <InformationCard
-          name="System Alerts"
-          icon="notification"
-          data={stats.systemAlerts}
+          // data={stats?.activeLoans}
         />
       </div>
 

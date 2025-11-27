@@ -37,7 +37,7 @@ function Topbar() {
 
   // Update count when new notification arrives via WebSocket
   useEffect(() => {
-    if (lastMessage) {
+    if (lastMessage && lastMessage.type === "notification") {
       setUnreadCount((prev) => prev + 1);
     }
   }, [lastMessage]);

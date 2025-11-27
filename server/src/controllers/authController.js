@@ -78,8 +78,11 @@ export const login = asyncHandler(async (req, res) => {
   const isMatch = await bcrypt.compare(body.password, user.password);
   appAssert(isMatch, "Invalid Credentials", 401);
 
-  generateToken(user._id, res);
+  user.lastLoginAt = new Date();
+  user.isOnline = true;
+  await user.save();
 
+  generateToken(user._id, res);
   res.status(200).json({
     message: "User logged in successfully",
     user: user.omitPassword(),
@@ -90,6 +93,11 @@ export const login = asyncHandler(async (req, res) => {
  * @route POST /auth/logout
  */
 export const logout = asyncHandler(async (req, res) => {
+  // Update user online status if authenticated
+  if (req.user?._id) {
+    await UserModel.findByIdAndUpdate(req.user._id, { isOnline: false });
+  }
+
   res.clearCookie("jwt");
   res.status(200).json({ message: "Logout successful" });
 });

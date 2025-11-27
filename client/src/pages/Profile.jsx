@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useUserStore } from "../store/user";
 import axiosInstance from "../api/axiosInstance";
 import { toast } from "react-hot-toast";
+import Loader from "../components/Loader";
 
 function Profile() {
   const { user } = useUserStore();
@@ -536,20 +537,29 @@ function Profile() {
                         : " bg-(--accent) hover:bg-(--accent)/90"
                     }`}
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    {loading ? "Saving..." : "Save Changes"}
+                    {loading ? (
+                      <>
+                        <Loader variant="spinner" size="sm" />
+                        Saving Changes
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Save Changes
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleCancel}

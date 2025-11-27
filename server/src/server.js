@@ -15,6 +15,7 @@ import itemRoutes from "./routes/itemRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import officerRoutes from "./routes/officerRoutes.js";
+import UserModel from "./models/user.js";
 
 // Import passport configuration (this registers the Google strategy)
 import "./utils/passport.js";
@@ -30,10 +31,11 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173"],
     credentials: true,
   })
 );
+
 app.use(cookieParser());
 app.use(
   session({
@@ -70,7 +72,7 @@ const clients = new Map();
 wss.on("connection", (ws) => {
   console.log("New WebSocket connection");
 
-  ws.on("message", (message) => {
+  ws.on("message", async (message) => {
     try {
       const data = JSON.parse(message);
 
@@ -78,18 +80,45 @@ wss.on("connection", (ws) => {
       if (data.type === "register" && data.userId) {
         clients.set(data.userId, ws);
         console.log(`User ${data.userId} registered for notifications`);
+
+        // Update user online status in database
+        await UserModel.findByIdAndUpdate(data.userId, {
+          isOnline: true,
+          lastLoginAt: new Date(),
+        });
+
+        // Broadcast updated active users count to all admins
+        const activeUsersCount = await UserModel.countDocuments({
+          isOnline: true,
+        });
+        broadcastToAdmins({
+          type: "active_users_update",
+          count: activeUsersCount,
+        });
       }
     } catch (err) {
       console.error("WebSocket message error:", err);
     }
   });
 
-  ws.on("close", () => {
-    // Remove client from map
+  ws.on("close", async () => {
+    // Remove client from map and update database
     for (const [userId, client] of clients.entries()) {
       if (client === ws) {
         clients.delete(userId);
         console.log(`User ${userId} disconnected`);
+
+        // Update user offline status in database
+        await UserModel.findByIdAndUpdate(userId, { isOnline: false });
+
+        // Broadcast updated active users count to all admins
+        const activeUsersCount = await UserModel.countDocuments({
+          isOnline: true,
+        });
+        broadcastToAdmins({
+          type: "active_users_update",
+          count: activeUsersCount,
+        });
         break;
       }
     }
@@ -118,6 +147,23 @@ export const broadcastActivity = (message) => {
       client.send(JSON.stringify(message));
     }
   });
+};
+
+// Function to broadcast to admin users only
+const broadcastToAdmins = async (message) => {
+  try {
+    const adminUsers = await UserModel.find({ role: "admin" }).select("_id");
+    const adminIds = adminUsers.map((user) => user._id.toString());
+
+    adminIds.forEach((adminId) => {
+      const client = clients.get(adminId);
+      if (client && client.readyState === 1) {
+        client.send(JSON.stringify(message));
+      }
+    });
+  } catch (err) {
+    console.error("Error broadcasting to admins:", err);
+  }
 };
 
 server.listen(PORT, async () => {

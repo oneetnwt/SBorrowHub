@@ -35,8 +35,10 @@ function Notification({ onClose, onNotificationRead }) {
 
   // Listen for new notifications via WebSocket
   useEffect(() => {
-    if (lastMessage) {
-      setNotifications((prev) => [lastMessage, ...prev]);
+    if (lastMessage && lastMessage.type === "notification") {
+      // Extract notification data from WebSocket message
+      const newNotification = lastMessage.data;
+      setNotifications((prev) => [newNotification, ...prev]);
     }
   }, [lastMessage]);
 

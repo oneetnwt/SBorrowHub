@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import SidebarLink from "./SidebarLink";
 import Logo from "./icons/Logo";
 import { useUserStore } from "../store/user";
@@ -10,8 +10,13 @@ function Sidebar({ role = "user" }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const handleNavigate = () => {
+    navigate("/");
+  };
+
   const adminLinks = [
     { name: "Dashboard", to: "/admin", icon: "dashboard" },
+    { name: "Logs", to: "/admin/logs", icon: "history" },
     {
       name: "Role Management",
       to: "/admin/permission-control",
@@ -29,7 +34,7 @@ function Sidebar({ role = "user" }) {
     { name: "Transactions", to: "/officer/transactions", icon: "list" },
     { name: "Users", to: "/officer/users", icon: "users" },
     { name: "Analytics", to: "/officer/analytics", icon: "analytics" },
-    { name: "Settings", to: "/officer/settings", icon: "feedback" },
+    { name: "Settings", to: "/officer/settings", icon: "settings" },
   ];
 
   const links =
@@ -82,7 +87,10 @@ function Sidebar({ role = "user" }) {
       {user && (
         <div className="px-4 pb-4">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
+            <div
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={handleNavigate}
+            >
               <div className="relative">
                 <div className="w-11 h-11 rounded-full bg-linear-to-br from-(--accent) to-(--primary) flex items-center justify-center shrink-0">
                   {user.profilePicture ? (

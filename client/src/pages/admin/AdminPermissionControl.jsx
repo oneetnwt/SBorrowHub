@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Modal from "../../components/modals/Modal";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import axiosInstance from "../../api/axiosInstance";
+import Loader from "../../components/Loader";
 
 function AdminPermissionControl() {
   const [users, setUsers] = useState([]);
@@ -12,57 +13,12 @@ function AdminPermissionControl() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    role: "student",
+    role: "user",
     permissions: [],
   });
 
-  const availablePermissions = [
-    {
-      id: "view_items",
-      name: "View Items",
-      description: "Can view catalog items",
-    },
-    {
-      id: "borrow_items",
-      name: "Borrow Items",
-      description: "Can request to borrow items",
-    },
-    {
-      id: "manage_inventory",
-      name: "Manage Inventory",
-      description: "Can add/edit/delete items",
-    },
-    {
-      id: "approve_requests",
-      name: "Approve Requests",
-      description: "Can approve/reject borrow requests",
-    },
-    {
-      id: "manage_users",
-      name: "Manage Users",
-      description: "Can view and edit user accounts",
-    },
-    {
-      id: "view_analytics",
-      name: "View Analytics",
-      description: "Can access analytics dashboard",
-    },
-    {
-      id: "system_settings",
-      name: "System Settings",
-      description: "Can modify system settings",
-    },
-    {
-      id: "manage_permissions",
-      name: "Manage Permissions",
-      description: "Can assign roles and permissions",
-    },
-  ];
-
   const rolePermissions = {
-    student: ["view_items", "borrow_items"],
-    faculty: ["view_items", "borrow_items"],
-    staff: ["view_items", "borrow_items"],
+    user: ["view_items", "borrow_items"],
     officer: [
       "view_items",
       "borrow_items",
@@ -103,13 +59,11 @@ function AdminPermissionControl() {
 
   const getRoleBadge = (role) => {
     const badges = {
-      student: "bg-blue-100 text-blue-700 border-blue-200",
-      faculty: "bg-purple-100 text-purple-700 border-purple-200",
-      staff: "bg-orange-100 text-orange-700 border-orange-200",
+      user: "bg-blue-100 text-blue-700 border-blue-200",
       officer: "bg-green-100 text-green-700 border-green-200",
       admin: "bg-red-100 text-red-700 border-red-200",
     };
-    return badges[role] || badges.student;
+    return badges[role] || badges.user;
   };
 
   const filteredUsers = users.filter((user) => {
@@ -125,15 +79,16 @@ function AdminPermissionControl() {
   const openEditModal = (user) => {
     setSelectedUser(user);
     setFormData({
-      role: user.role || "student",
+      role: user.role || "user",
       permissions: rolePermissions[user.role] || [],
     });
     setIsEditModalOpen(true);
   };
 
   const handleUpdatePermissions = async () => {
+    setLoading(true);
     try {
-      await axiosInstance.put(`/admin/update-user-role/${selectedUser._id}`, {
+      await axiosInstance.put(`/admin/update-role/${selectedUser._id}`, {
         role: formData.role,
       });
 
@@ -149,6 +104,8 @@ function AdminPermissionControl() {
     } catch (error) {
       console.error("Error updating permissions:", error);
       alert("Failed to update permissions. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -179,21 +136,15 @@ function AdminPermissionControl() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
           <p className="text-gray-500 text-xs mb-0.5">Total Users</p>
           <p className="text-2xl font-bold text-gray-900">{users.length}</p>
         </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
-          <p className="text-blue-600 text-xs mb-0.5">Students</p>
+          <p className="text-blue-600 text-xs mb-0.5">Users</p>
           <p className="text-2xl font-bold text-blue-700">
-            {users.filter((u) => u.role === "student").length}
-          </p>
-        </div>
-        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200 shadow-sm">
-          <p className="text-purple-600 text-xs mb-0.5">Faculty</p>
-          <p className="text-2xl font-bold text-purple-700">
-            {users.filter((u) => u.role === "faculty").length}
+            {users.filter((u) => u.role === "user").length}
           </p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
@@ -243,9 +194,7 @@ function AdminPermissionControl() {
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
           >
             <option value="all">All Roles</option>
-            <option value="student">Student</option>
-            <option value="faculty">Faculty</option>
-            <option value="staff">Staff</option>
+            <option value="user">User</option>
             <option value="officer">Officer</option>
             <option value="admin">Admin</option>
           </select>
@@ -315,7 +264,7 @@ function AdminPermissionControl() {
                         )}`}
                       >
                         {user.role?.charAt(0).toUpperCase() +
-                          user.role?.slice(1) || "Student"}
+                          user.role?.slice(1) || "Users"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -353,7 +302,7 @@ function AdminPermissionControl() {
         title="Change User Role"
       >
         {selectedUser && (
-          <div className="space-y-4">
+          <div className="space-y-4 p-5">
             {/* User Info */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <img
@@ -382,9 +331,7 @@ function AdminPermissionControl() {
                 onChange={(e) => handleRoleChange(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
               >
-                <option value="student">Student</option>
-                <option value="faculty">Faculty</option>
-                <option value="staff">Staff</option>
+                <option value="user">User</option>
                 <option value="officer">Officer</option>
                 <option value="admin">Admin</option>
               </select>
@@ -400,19 +347,7 @@ function AdminPermissionControl() {
                 Role Capabilities
               </h4>
               <ul className="text-xs text-blue-800 space-y-1">
-                {formData.role === "student" && (
-                  <>
-                    <li>• View available items</li>
-                    <li>• Request to borrow items</li>
-                  </>
-                )}
-                {formData.role === "faculty" && (
-                  <>
-                    <li>• View available items</li>
-                    <li>• Request to borrow items</li>
-                  </>
-                )}
-                {formData.role === "staff" && (
+                {formData.role === "user" && (
                   <>
                     <li>• View available items</li>
                     <li>• Request to borrow items</li>
@@ -420,7 +355,7 @@ function AdminPermissionControl() {
                 )}
                 {formData.role === "officer" && (
                   <>
-                    <li>• All student/faculty/staff permissions</li>
+                    <li>• All user permissions</li>
                     <li>• Manage inventory items</li>
                     <li>• Approve/reject borrow requests</li>
                     <li>• View analytics and reports</li>
@@ -452,7 +387,14 @@ function AdminPermissionControl() {
                 onClick={handleUpdatePermissions}
                 className="flex-1 px-4 py-2 bg-(--accent) hover:bg-(--accent-dark) text-white rounded-lg font-medium transition-colors"
               >
-                Save Changes
+                {loading ? (
+                  <div className="flex items-center gap-3 justify-center">
+                    <Loader />
+                    <p>Updating</p>
+                  </div>
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </div>

@@ -13,6 +13,13 @@ const userSchema = mongoose.Schema(
     profilePicture: { type: String, required: false, default: "" },
     googleId: { type: String, required: false, unique: true, sparse: true },
     role: { type: String, enum: ["user", "admin", "officer"], default: "user" },
+    status: {
+      type: String,
+      enum: ["active", "offline", "inactive"],
+      default: "active",
+    },
+    lastLoginAt: { type: Date, default: null },
+    isOnline: { type: Boolean, default: false },
   },
   {
     timestamps: true,

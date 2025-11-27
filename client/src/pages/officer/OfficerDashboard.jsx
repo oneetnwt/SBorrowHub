@@ -486,7 +486,9 @@ function OfficerDashboard() {
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <h2 className="font-bold text-xl text-gray-900">Overdue Loans</h2>
+              <h2 className="font-bold text-xl text-gray-900">
+                Overdue Borrows
+              </h2>
             </div>
             <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-bold">
               {overdueLoans.length}

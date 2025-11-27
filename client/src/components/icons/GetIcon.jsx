@@ -13,6 +13,7 @@ import Search from "./Search";
 import Notification from "./Notification";
 import Box from "./Box";
 import Person from "./Person";
+import Settings from "./Settings";
 
 function GetIcon({ icon }) {
   const icons = new Map();
@@ -32,6 +33,7 @@ function GetIcon({ icon }) {
   icons.set("notification", <Notification />);
   icons.set("box", <Box />);
   icons.set("person", <Person />);
+  icons.set("settings", <Settings />);
 
   return icons.get(icon);
 }

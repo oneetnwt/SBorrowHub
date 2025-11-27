@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useUserStore } from "../store/user";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
-import { useOfficerStore } from "../store/officer";
 import Loader from "./Loader";
 
 function OfficerProtectedRoute({ children }) {
@@ -86,7 +85,7 @@ function OfficerProtectedRoute({ children }) {
     );
   }
 
-  if (!user || !officer || user.role !== "officer") {
+  if (!user || user.role !== "officer") {
     return null;
   }
 

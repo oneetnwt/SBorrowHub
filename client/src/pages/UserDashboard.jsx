@@ -249,7 +249,7 @@ function UserDashboard() {
             <h2 className="font-bold text-lg mb-4">Recent Activity</h2>
             <div className="space-y-3">
               {recentActivities.length > 0 ? (
-                recentActivities.map((activity) => (
+                recentActivities.slice(0, 3).map((activity) => (
                   <div
                     key={activity._id || activity.id}
                     className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"

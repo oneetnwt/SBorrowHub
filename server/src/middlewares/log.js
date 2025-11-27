@@ -4,20 +4,15 @@ import LogModel from "../models/log.js";
 import UserModel from "../models/user.js";
 import ItemModel from "../models/item.js";
 import { broadcastActivity } from "../server.js";
-import {
-  ACTIVITY_ACTIONS,
-  ACTIVITY_TYPES,
-  FALLBACK_ACTIONS,
-} from "../constant/index.js";
+import { ACTIVITY_ACTIONS } from "../constant/index.js";
 
 export const logActivity = asyncHandler(async (req, res, next) => {
-  // Skip logging GET requests
-  if (req.method === "GET") {
-    return next();
-  }
-
   // Try to extract user ID from JWT cookie if it exists
   let userId = "anonymous";
+
+  if (req.method === "GET" || req.status >= 400) {
+    return next();
+  }
 
   try {
     const token = req.cookies.jwt;
@@ -34,6 +29,7 @@ export const logActivity = asyncHandler(async (req, res, next) => {
   try {
     const newLog = new LogModel({
       userId: userId,
+      method: req.method,
       action: `${req.method} ${req.originalUrl}`,
       ip: req.ip,
       details: JSON.stringify(req.body),

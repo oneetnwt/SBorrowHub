@@ -32,6 +32,8 @@ import AdminPermissionControl from "./pages/admin/AdminPermissionControl";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminFeedback from "./pages/admin/AdminFeedback";
 import AdminTransactions from "./pages/admin/AdminTransactions";
+import AdminLog from "./pages/admin/AdminLog";
+import Error from "./pages/Error";
 
 function Route() {
   const routes = createBrowserRouter([
@@ -42,6 +44,7 @@ function Route() {
           <App />
         </ProtectedRoute>
       ),
+      errorElement: <Error />,
       children: [
         {
           path: "",
@@ -174,6 +177,10 @@ function Route() {
         {
           path: "transactions",
           element: <AdminTransactions />,
+        },
+        {
+          path: "logs",
+          element: <AdminLog />,
         },
       ],
     },
