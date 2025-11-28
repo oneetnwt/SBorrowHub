@@ -35,7 +35,6 @@ function OfficerRequests() {
         setRequests(response.data);
       } catch (error) {
         console.error("Error fetching requests:", error);
-        alert("Failed to fetch requests. Using mock data.");
       }
     };
     fetchRequests();
@@ -77,10 +76,8 @@ function OfficerRequests() {
       );
       setIsApproveModalOpen(false);
       setSelectedRequest(null);
-      alert("Request approved successfully!");
     } catch (error) {
       console.error("Error approving request:", error);
-      alert("Failed to approve request. Please try again.");
     }
   };
 
@@ -98,10 +95,8 @@ function OfficerRequests() {
       setIsRejectModalOpen(false);
       setSelectedRequest(null);
       setRejectReason("");
-      alert("Request rejected successfully!");
     } catch (error) {
       console.error("Error rejecting request:", error);
-      alert("Failed to reject request. Please try again.");
     }
   };
 

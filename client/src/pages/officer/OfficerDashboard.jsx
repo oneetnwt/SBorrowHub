@@ -36,15 +36,17 @@ function OfficerDashboard() {
     const fetchAllDashboardData = async () => {
       setLoading(true);
       try {
-        const [statsRes, pendingRes, activityRes, lowStockRes] =
+        const [statsRes, pendingRes, activityRes, lowStockRes, overdueRes] =
           await Promise.all([
             axiosInstance.get("/officer/dashboard-stats"),
             axiosInstance.get("/officer/pending-requests"),
             axiosInstance.get("/officer/recent-activity"),
             axiosInstance.get("/catalog/get-low-stock"),
+            axiosInstance.get("/officer/overdue"),
           ]);
 
         setStats(statsRes.data);
+        setOverdueLoans(overdueRes.data);
         setDataLoaded((prev) => ({ ...prev, stats: true }));
 
         setPendingApprovals(pendingRes.data);

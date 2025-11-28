@@ -8,7 +8,7 @@ function AdminLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const logsPerPage = 50;
+  const logsPerPage = 8;
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -155,7 +155,7 @@ function AdminLog() {
       </div>
 
       {/* Logs Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
         {currentLogs.length === 0 ? (
           <div className="p-12 text-center">
             <svg
@@ -179,23 +179,23 @@ function AdminLog() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full min-w-max">
+                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       Timestamp
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       Method
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       Action
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       User
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       IP Address
                     </th>
                   </tr>
@@ -206,10 +206,10 @@ function AdminLog() {
                       key={log._id}
                       className="hover:bg-gray-50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                         {formatDate(log.timestamp)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={`px-2 py-1 text-xs font-semibold rounded-full ${getMethodBadge(
                             log.method
@@ -218,13 +218,19 @@ function AdminLog() {
                           {log.method}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 font-mono">
+                      <td
+                        className="px-4 py-3 text-sm text-gray-900 font-mono max-w-md truncate"
+                        title={log.action}
+                      >
                         {log.action}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td
+                        className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate"
+                        title={log.userId}
+                      >
                         {log.userId}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                      <td className="px-4 py-3 text-sm text-gray-600 font-mono whitespace-nowrap">
                         {log.ip}
                       </td>
                     </tr>
@@ -235,14 +241,14 @@ function AdminLog() {
 
             {/* Pagination */}
             {filteredLogs.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <div className="px-4 py-3 border-t border-gray-200 flex flex-col md:flex-row gap-3 items-center justify-between">
                 <p className="text-sm text-gray-600">
                   Showing {indexOfFirstLog + 1} to{" "}
                   {Math.min(indexOfLastLog, filteredLogs.length)} of{" "}
                   {filteredLogs.length} logs
                 </p>
                 {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.max(1, prev - 1))
@@ -254,7 +260,7 @@ function AdminLog() {
                     </button>
 
                     {/* Page Numbers */}
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1 justify-center">
                       {Array.from(
                         { length: Math.min(totalPages, 5) },
                         (_, i) => {

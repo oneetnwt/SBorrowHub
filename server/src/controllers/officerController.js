@@ -3,7 +3,6 @@ import { appAssert } from "../errors/appAssert.js";
 import BorrowRequestModel from "../models/borrowRequest.js";
 import ItemModel from "../models/item.js";
 import { createNotification } from "./notificationController.js";
-import NotificationModel from "../models/notification.js";
 import LogModel from "../models/log.js";
 import UserModel from "../models/user.js";
 import {
@@ -146,9 +145,7 @@ export const updateRequestStatus = asyncHandler(async (req, res) => {
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
   // Get counts
-  const totalUsers = await BorrowRequestModel.distinct("borrowerId").then(
-    (ids) => ids.length
-  );
+  const totalUsers = await UserModel.countDocuments({ role: "user" });
   const totalItems = await ItemModel.countDocuments();
   const pendingRequests = await BorrowRequestModel.countDocuments({
     status: "pending",
@@ -193,7 +190,7 @@ export const getPendingRequests = asyncHandler(async (req, res) => {
 });
 
 // TODO: Get overdue loans
-export const getOverdueLoans = asyncHandler(async (req, res) => {
+export const getOverdue = asyncHandler(async (req, res) => {
   const overdueLoans = await BorrowRequestModel.find({
     status: "borrowed",
     dueDate: { $lt: new Date() },
@@ -214,7 +211,7 @@ export const getOverdueLoans = asyncHandler(async (req, res) => {
     };
   });
 
-  res.status(200).json(loansWithOverdue);
+  res.status(200).json(loansWithOverdue, overdueLoans);
 });
 
 // Get recent activity from logs (user activities only)

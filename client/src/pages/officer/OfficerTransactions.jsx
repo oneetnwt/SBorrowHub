@@ -11,6 +11,7 @@ function OfficerTransactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
 
   // Fetch transactions from backend
   useEffect(() => {
@@ -22,11 +23,35 @@ function OfficerTransactions() {
         setTransactions(response.data);
       } catch (error) {
         console.error("Error fetching transactions:", error);
-        alert("Failed to fetch transactions. Using mock data.");
       }
     };
     fetchTransactions();
   }, []);
+
+  const handleMarkReturned = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        {
+          status: "returned",
+        }
+      );
+
+      // Update local state
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId
+            ? { ...txn, status: "completed", actualReturnDate: new Date() }
+            : txn
+        )
+      );
+    } catch (error) {
+      console.error("Error updating transaction status:", error);
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -144,39 +169,43 @@ function OfficerTransactions() {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+          <table className="w-full min-w-max">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Transaction ID
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   User
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Item
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Borrow Date
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Return Date
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 overflow-scroll">
               {filteredTransactions.map((txn) => (
                 <tr
                   key={txn._id}
-                  className="hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    setSelectedTransaction(txn);
+                    setIsDetailsModalOpen(true);
+                  }}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="font-mono text-sm font-medium text-gray-900">
@@ -229,15 +258,25 @@ function OfficerTransactions() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => {
-                        setSelectedTransaction(txn);
-                        setIsDetailsModalOpen(true);
-                      }}
-                      className="text-(--accent) hover:text-(--accent-dark) font-medium text-sm"
-                    >
-                      View Details
-                    </button>
+                    {txn.status === "borrowed" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkReturned(txn._id);
+                        }}
+                        disabled={updatingStatus === txn._id}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {updatingStatus === txn._id
+                          ? "Updating..."
+                          : "Mark Returned"}
+                      </button>
+                    )}
+                    {txn.status === "returned" && (
+                      <span className="text-gray-500 text-sm italic">
+                        Returned
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -263,7 +302,7 @@ function OfficerTransactions() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-xs text-gray-500 mb-1">Transaction ID</p>
                 <p className="font-mono text-xl font-bold text-gray-900">
-                  {selectedTransaction.id}
+                  {selectedTransaction.requestCode}
                 </p>
               </div>
 

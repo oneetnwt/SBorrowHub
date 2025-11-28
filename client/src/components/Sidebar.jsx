@@ -16,22 +16,19 @@ function Sidebar({ role = "user" }) {
 
   const adminLinks = [
     { name: "Dashboard", to: "/admin", icon: "dashboard" },
-    { name: "Logs", to: "/admin/logs", icon: "history" },
+    { name: "Logs", to: "/admin/logs", icon: "log" },
     {
       name: "Role Management",
       to: "/admin/permission-control",
       icon: "key",
     },
     { name: "Users", to: "/admin/users", icon: "users" },
-    { name: "Feedback", to: "/admin/feedback", icon: "feedback" },
-    { name: "Transactions", to: "/admin/transactions", icon: "list" },
   ];
 
   const officerLinks = [
     { name: "Dashboard", to: "/officer", icon: "dashboard" },
     { name: "Inventory", to: "/officer/inventory", icon: "inventory" },
     { name: "Requests", to: "/officer/requests", icon: "borrow" },
-    { name: "Transactions", to: "/officer/transactions", icon: "list" },
     { name: "Users", to: "/officer/users", icon: "users" },
     { name: "Analytics", to: "/officer/analytics", icon: "analytics" },
     { name: "Settings", to: "/officer/settings", icon: "settings" },

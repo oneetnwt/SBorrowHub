@@ -6,8 +6,9 @@ import Loader from "../components/Loader";
 
 function Profile() {
   const { user } = useUserStore();
-  const [loading, SetLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [stats, setStats] = useState([]);
   const [formData, setFormData] = useState({
     firstname: "",
     lastname: "",
@@ -19,6 +20,26 @@ function Profile() {
   });
 
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchStat = async () => {
+      setLoading(true);
+
+      try {
+        const res = await axiosInstance.get("/catalog/get-request-item");
+
+        if (res.status === 200) {
+          setStats(res.data);
+        }
+      } catch (error) {
+        console.log("Unable to fetch Data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStat();
+  }, []);
 
   // Update formData when user data loads
   useEffect(() => {
@@ -70,7 +91,7 @@ function Profile() {
 
   const handleSave = async () => {
     try {
-      SetLoading(true);
+      setLoading(true);
       // Prepare data to send (only send changed fields)
       const updateData = {};
 
@@ -110,7 +131,7 @@ function Profile() {
       console.error("Error updating profile:", error);
       toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
-      SetLoading(false);
+      setLoading(false);
     }
   };
 
@@ -320,15 +341,21 @@ function Profile() {
             </h4>
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <p className="text-2xl font-bold text-blue-600">12</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {stats.filter((s) => s.status === "borrowed").length}
+                </p>
                 <p className="text-xs text-gray-600 mt-1">Borrowed</p>
               </div>
               <div className="text-center p-3 bg-green-50 rounded-lg border border-green-100">
-                <p className="text-2xl font-bold text-green-600">8</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats.filter((s) => s.status === "returned").length}
+                </p>
                 <p className="text-xs text-gray-600 mt-1">Returned</p>
               </div>
               <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-100">
-                <p className="text-2xl font-bold text-orange-600">2</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {stats.filter((s) => s.status === "pending").length}
+                </p>
                 <p className="text-xs text-gray-600 mt-1">Pending</p>
               </div>
             </div>

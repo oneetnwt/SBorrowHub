@@ -80,7 +80,6 @@ function OfficerInventory() {
       setItems([...items, response.data]);
       setIsAddModalOpen(false);
       resetForm();
-      alert("Item added successfully!");
     } catch (error) {
       console.error("Error adding item:", error);
     } finally {

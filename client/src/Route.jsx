@@ -30,8 +30,6 @@ import Admin from "./pages/admin/Admin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPermissionControl from "./pages/admin/AdminPermissionControl";
 import AdminUsers from "./pages/admin/AdminUsers";
-import AdminFeedback from "./pages/admin/AdminFeedback";
-import AdminTransactions from "./pages/admin/AdminTransactions";
 import AdminLog from "./pages/admin/AdminLog";
 import Error from "./pages/Error";
 
@@ -169,14 +167,6 @@ function Route() {
         {
           path: "users",
           element: <AdminUsers />,
-        },
-        {
-          path: "feedback",
-          element: <AdminFeedback />,
-        },
-        {
-          path: "transactions",
-          element: <AdminTransactions />,
         },
         {
           path: "logs",

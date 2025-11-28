@@ -153,6 +153,11 @@ function Notification({ onClose, onNotificationRead }) {
               Loading notifications...
             </div>
           )}
+          {!loading && !error && notifications.length === 0 && (
+            <div className="p-8 text-center text-gray-500">
+              No notifications
+            </div>
+          )}
           {error && <div className="p-8 text-center text-red-500">{error}</div>}
           {!loading &&
             !error &&
