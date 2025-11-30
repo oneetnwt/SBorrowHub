@@ -48,6 +48,8 @@ input::-webkit-inner-spin-button {
   --warning: #d9a74a;
   --error: #c85a5a;
   --info: #7a9bb8;
+
+  /* Neutral Shades */
   --neutral-50: #fafaf8;
   --neutral-100: #f5f3f0;
   --neutral-200: #e8e5e0;
@@ -55,6 +57,9 @@ input::-webkit-inner-spin-button {
   --neutral-400: #b8b0a5;
   --neutral-500: #9d9490;
   --neutral-600: #7a7066;
+  --neutral-700: #5a534a;
+  --neutral-800: #3a352f;
+  --neutral-900: #1a1916;
 }
 
 body {

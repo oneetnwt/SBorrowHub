@@ -92,10 +92,10 @@ function AdminLog() {
           <p className="text-gray-500 text-xs mb-0.5">Total Logs</p>
           <p className="text-2xl font-bold text-gray-900">{logs.length}</p>
         </div>
-        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
-          <p className="text-blue-600 text-xs mb-0.5">GET Requests</p>
-          <p className="text-2xl font-bold text-blue-700">
-            {logs.filter((l) => l.method === "GET").length}
+        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 shadow-sm">
+          <p className="text-yellow-600 text-xs mb-0.5">PUT Requests</p>
+          <p className="text-2xl font-bold text-yellow-700">
+            {logs.filter((l) => l.method === "PUT").length}
           </p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
@@ -107,7 +107,7 @@ function AdminLog() {
         <div className="bg-purple-50 rounded-lg p-3 border border-purple-200 shadow-sm">
           <p className="text-purple-600 text-xs mb-0.5">Other Methods</p>
           <p className="text-2xl font-bold text-purple-700">
-            {logs.filter((l) => !["GET", "POST"].includes(l.method)).length}
+            {logs.filter((l) => !["PUT", "POST"].includes(l.method)).length}
           </p>
         </div>
       </div>

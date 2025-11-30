@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import Modal from "../../components/modals/Modal";
 import axiosInstance from "../../api/axiosInstance";
+import useWebSocket from "../../hooks/useWebSocket";
+import { useUserStore } from "../../store/user";
 
 function AdminUsers() {
+  const { user } = useUserStore();
+  const { isConnected, lastMessage } = useWebSocket(user?._id);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,6 +34,19 @@ function AdminUsers() {
 
     fetchUsers();
   }, []);
+
+  // Listen for real-time user status updates
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === "user_status_update") {
+      setUsers((prevUsers) =>
+        prevUsers.map((u) =>
+          u._id === lastMessage.userId
+            ? { ...u, isOnline: lastMessage.isOnline }
+            : u
+        )
+      );
+    }
+  }, [lastMessage]);
 
   const getStatusStyle = (status) => {
     const styles = {
@@ -298,6 +315,9 @@ function AdminUsers() {
                     Role
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Department
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -315,7 +335,7 @@ function AdminUsers() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="8"
                       className="px-4 py-8 text-center text-gray-500"
                     >
                       Loading users...
@@ -358,6 +378,20 @@ function AdminUsers() {
                             user.role?.slice(1)}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ${
+                              user.isOnline
+                                ? "bg-green-500 animate-pulse"
+                                : "bg-gray-400"
+                            }`}
+                          ></div>
+                          <span className="text-xs font-medium text-gray-700">
+                            {user.isOnline ? "Online" : "Offline"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {user.department || "N/A"}
                       </td>
@@ -375,7 +409,7 @@ function AdminUsers() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="8"
                       className="px-4 py-8 text-center text-gray-500"
                     >
                       No users found

@@ -43,3 +43,48 @@ export const getLogs = asyncHandler(async (req, res) => {
 
   res.status(200).json(logs);
 });
+
+export const getUptime = asyncHandler(async (req, res) => {
+  console.log("getUptime called");
+  const uptimeSeconds = Math.floor(process.uptime());
+  const days = Math.floor(uptimeSeconds / 86400);
+  const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+  const result = {
+    uptime: uptimeSeconds * 1000,
+    formatted: `${days}d ${hours}h ${minutes}m`,
+    percentage: 99.9,
+  };
+
+  console.log("Uptime result:", result);
+  res.status(200).json(result);
+});
+
+export const getDashboardStats = asyncHandler(async (req, res) => {
+  // User statistics
+  const totalUsers = await UserModel.countDocuments();
+  const activeUsers = await UserModel.countDocuments({ isOnline: true });
+  const usersByRole = await UserModel.aggregate([
+    {
+      $group: {
+        _id: "$role",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  // User activity status
+  const onlineUsers = await UserModel.countDocuments({ isOnline: true });
+  const offlineUsers = await UserModel.countDocuments({ isOnline: false });
+
+  res.status(200).json({
+    totalUsers,
+    activeUsers,
+    usersByRole,
+    activityStatus: {
+      online: onlineUsers,
+      offline: offlineUsers,
+    },
+  });
+});

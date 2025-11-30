@@ -10,6 +10,7 @@ import {
   SORT_OPTIONS,
 } from "../constants/index";
 import Checkbox from "../components/Checkbox";
+import toast from "react-hot-toast";
 
 function UserCatalog() {
   const [items, setItems] = useState([]);
@@ -20,6 +21,7 @@ function UserCatalog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [addingToCart, setAddingToCart] = useState(null); // Track which item is being added
 
   const handleSortChange = (id) => {
     setSelectedSort(selectedSort === id ? null : id);
@@ -36,6 +38,25 @@ function UserCatalog() {
   const handleBorrowClick = (item) => {
     setSelectedItem(item);
     setIsModalOpen(true);
+  };
+
+  const handleAddToCart = async (item) => {
+    try {
+      setAddingToCart(item._id);
+      await axiosInstance.post("/cart/add", {
+        itemId: item._id,
+        quantity: 1,
+        borrowDays: 7,
+      });
+      toast.success(`${item.name} has been added to your cart!`);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to add item to cart"
+      );
+    } finally {
+      setAddingToCart(null);
+    }
   };
 
   const clearAllFilters = () => {
@@ -220,7 +241,7 @@ function UserCatalog() {
       {/* Main Content */}
       <div className="md:ml-65 flex flex-col h-full w-full">
         {/* Item Catalog Header */}
-        <div className="sticky top-0 z-40 bg-(--background) px-3 pb-3">
+        <div className="sticky top-0 z-10 bg-(--background) px-3 pb-3">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Item Catalog</h1>
@@ -259,6 +280,8 @@ function UserCatalog() {
                   tags={item.tags}
                   image={item.image}
                   onBorrowClick={() => handleBorrowClick(item)}
+                  onAddToCart={() => handleAddToCart(item)}
+                  isAddingToCart={addingToCart === item._id}
                 />
               ))
             ) : (

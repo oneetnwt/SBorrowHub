@@ -59,7 +59,7 @@ function Topbar() {
   }, [showDropdown]);
 
   return (
-    <header className="flex items-center justify-between z-40">
+    <header className="flex items-center justify-between">
       <div>
         <Logo />
       </div>

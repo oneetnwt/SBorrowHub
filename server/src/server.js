@@ -15,6 +15,7 @@ import itemRoutes from "./routes/itemRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import officerRoutes from "./routes/officerRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
 import UserModel from "./models/user.js";
 
 // Import passport configuration (this registers the Google strategy)
@@ -24,6 +25,7 @@ import { logActivity } from "./middlewares/log.js";
 config();
 
 const app = express();
+export const serverStartTime = Date.now();
 
 // Increase payload limit for base64 images
 app.use(express.json({ limit: "10mb" }));
@@ -56,6 +58,7 @@ app.use("/catalog", itemRoutes);
 app.use("/admin", adminRoutes);
 app.use("/officer", officerRoutes);
 app.use("/notification", notificationRoutes);
+app.use("/cart", cartRoutes);
 
 // Error handler must be AFTER routes
 app.use(errorHandler);
@@ -87,6 +90,13 @@ wss.on("connection", (ws) => {
           lastLoginAt: new Date(),
         });
 
+        // Broadcast user status update to all admins
+        broadcastToAdmins({
+          type: "user_status_update",
+          userId: data.userId,
+          isOnline: true,
+        });
+
         // Broadcast updated active users count to all admins
         const activeUsersCount = await UserModel.countDocuments({
           isOnline: true,
@@ -110,6 +120,13 @@ wss.on("connection", (ws) => {
 
         // Update user offline status in database
         await UserModel.findByIdAndUpdate(userId, { isOnline: false });
+
+        // Broadcast user status update to all admins
+        broadcastToAdmins({
+          type: "user_status_update",
+          userId: userId,
+          isOnline: false,
+        });
 
         // Broadcast updated active users count to all admins
         const activeUsersCount = await UserModel.countDocuments({

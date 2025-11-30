@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import axiosInstance from "../api/axiosInstance";
 
 function TransactionHistory() {
@@ -8,6 +8,7 @@ function TransactionHistory() {
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedTransactionId, setExpandedTransactionId] = useState(null);
 
   // Fetch transactions from backend
   useEffect(() => {
@@ -104,6 +105,12 @@ function TransactionHistory() {
       return <span className="text-(--warning)">Due in {diffDays} days</span>;
     }
     return <span className="text-gray-600">Due in {diffDays} days</span>;
+  };
+
+  const handleViewDetails = (transactionId) => {
+    setExpandedTransactionId(
+      expandedTransactionId === transactionId ? null : transactionId
+    );
   };
 
   return (
@@ -261,7 +268,6 @@ function TransactionHistory() {
               </div>
             </div>
           </div>
-
           {/* Transactions Display */}
           <div className="flex-1 overflow-y-auto">
             {filteredTransactions.length === 0 ? (
@@ -315,56 +321,281 @@ function TransactionHistory() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-black/10">
-                      {filteredTransactions.map((transaction) => (
-                        <tr
-                          key={transaction._id}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                            {transaction.id}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {transaction.itemName}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {transaction.tags && transaction.tags.length > 0
-                                  ? transaction.tags.join(", ")
-                                  : "No tags"}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {new Date(
-                              transaction.borrowDate
-                            ).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div>
-                              <p className="text-sm text-gray-700">
+                      {filteredTransactions.map((transaction) => {
+                        const fullTransaction = transactions.find(
+                          (t) => t.requestCode === transaction.id
+                        );
+                        const isExpanded =
+                          expandedTransactionId === transaction.id;
+
+                        return (
+                          <Fragment key={transaction.id}>
+                            <tr className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {transaction.id}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {transaction.itemName}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {transaction.tags &&
+                                    transaction.tags.length > 0
+                                      ? transaction.tags.join(", ")
+                                      : "No tags"}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
                                 {new Date(
-                                  transaction.dueDate
+                                  transaction.borrowDate
                                 ).toLocaleDateString()}
-                              </p>
-                              <p className="text-xs">
-                                {getDaysRemaining(
-                                  transaction.dueDate,
-                                  transaction.status
-                                )}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-left">
-                            {getStatusBadge(transaction.status)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <button className="text-sm text-(--accent) hover:text-(--accent-dark) font-medium">
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div>
+                                  <p className="text-sm text-gray-700">
+                                    {new Date(
+                                      transaction.dueDate
+                                    ).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-xs">
+                                    {getDaysRemaining(
+                                      transaction.dueDate,
+                                      transaction.status
+                                    )}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-left">
+                                {getStatusBadge(transaction.status)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() =>
+                                    handleViewDetails(transaction.id)
+                                  }
+                                  className="text-sm text-(--accent) hover:text-(--accent-dark) font-medium flex items-center gap-1"
+                                >
+                                  {isExpanded ? "Hide Details" : "View Details"}
+                                  <svg
+                                    className={`w-4 h-4 transition-transform ${
+                                      isExpanded ? "rotate-180" : ""
+                                    }`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+
+                            {/* Expanded Details Row */}
+                            {isExpanded && fullTransaction && (
+                              <tr>
+                                <td
+                                  colSpan="6"
+                                  className="bg-gray-50 px-4 py-6"
+                                >
+                                  <div className="max-w-4xl mx-auto space-y-6">
+                                    {/* Header with Request Code */}
+                                    <div className="bg-white rounded-lg p-4 border-l-4 border-(--accent) shadow-sm">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm text-gray-600 mb-1">
+                                            Request Code
+                                          </p>
+                                          <p className="text-2xl font-bold text-gray-900">
+                                            {fullTransaction.requestCode}
+                                          </p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-sm text-gray-600 mb-1">
+                                            Status
+                                          </p>
+                                          <div className="text-lg">
+                                            {getStatusBadge(
+                                              fullTransaction.status
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Grid Layout for Details */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {/* Item Information */}
+                                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                        <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                          <svg
+                                            className="w-5 h-5 text-(--accent)"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                            />
+                                          </svg>
+                                          Item Information
+                                        </h3>
+                                        <div className="space-y-3">
+                                          <div className="flex justify-between items-start">
+                                            <span className="text-sm text-gray-600">
+                                              Item Name
+                                            </span>
+                                            <span className="font-semibold text-gray-900 text-right">
+                                              {fullTransaction.itemId?.name}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Category
+                                            </span>
+                                            <span className="font-medium text-gray-900">
+                                              {fullTransaction.itemId
+                                                ?.category || "N/A"}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Quantity
+                                            </span>
+                                            <span className="font-semibold text-(--accent)">
+                                              {fullTransaction.quantity}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Timeline */}
+                                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                        <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                          <svg
+                                            className="w-5 h-5 text-(--accent)"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            />
+                                          </svg>
+                                          Timeline
+                                        </h3>
+                                        <div className="space-y-3">
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Borrow Date
+                                            </span>
+                                            <span className="font-medium text-gray-900">
+                                              {new Date(
+                                                fullTransaction.borrowDate
+                                              ).toLocaleDateString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                              })}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Due Date
+                                            </span>
+                                            <span className="font-medium text-gray-900">
+                                              {new Date(
+                                                fullTransaction.returnDate
+                                              ).toLocaleDateString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                              })}
+                                            </span>
+                                          </div>
+                                          {fullTransaction.actualReturnDate && (
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">
+                                                Returned On
+                                              </span>
+                                              <span className="font-medium text-(--success)">
+                                                {new Date(
+                                                  fullTransaction.actualReturnDate
+                                                ).toLocaleDateString("en-US", {
+                                                  year: "numeric",
+                                                  month: "short",
+                                                  day: "numeric",
+                                                })}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Purpose & Notes */}
+                                    {(fullTransaction.purpose ||
+                                      fullTransaction.notes) && (
+                                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                        <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                          <svg
+                                            className="w-5 h-5 text-(--accent)"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
+                                          </svg>
+                                          Additional Information
+                                        </h3>
+                                        <div className="space-y-3">
+                                          {fullTransaction.purpose && (
+                                            <div>
+                                              <p className="text-sm text-gray-600 mb-1">
+                                                Purpose
+                                              </p>
+                                              <p className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                                                {fullTransaction.purpose}
+                                              </p>
+                                            </div>
+                                          )}
+                                          {fullTransaction.notes && (
+                                            <div>
+                                              <p className="text-sm text-gray-600 mb-1">
+                                                Notes
+                                              </p>
+                                              <p className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                                                {fullTransaction.notes}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -372,71 +603,295 @@ function TransactionHistory() {
             ) : (
               // Card View
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredTransactions.map((transaction) => (
-                  <div
-                    key={transaction._id}
-                    className="bg-white rounded-lg shadow-sm p-4 border border-black/10 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          {transaction.itemName}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          {transaction.tags && transaction.tags.length > 0
-                            ? transaction.tags.join(", ")
-                            : "No tags"}
-                        </p>
-                      </div>
-                      {getStatusBadge(transaction.status)}
-                    </div>
+                {filteredTransactions.map((transaction) => {
+                  const fullTransaction = transactions.find(
+                    (t) => t.requestCode === transaction.id
+                  );
+                  const isExpanded = expandedTransactionId === transaction.id;
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Transaction ID:</span>
-                        <span className="font-medium text-gray-900">
-                          {transaction.id}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Borrowed:</span>
-                        <span className="text-gray-700">
-                          {new Date(
-                            transaction.borrowDate
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Due Date:</span>
-                        <span className="text-gray-700">
-                          {new Date(transaction.dueDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {transaction.status !== "returned" && (
-                        <div className="pt-2 border-t border-black/10">
-                          {getDaysRemaining(
-                            transaction.dueDate,
-                            transaction.status
+                  return (
+                    <div
+                      key={transaction.id}
+                      className={`bg-white rounded-lg shadow-sm border border-black/10 transition-all ${
+                        isExpanded ? "md:col-span-2 lg:col-span-3" : ""
+                      }`}
+                    >
+                      {/* Card Header */}
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-semibold text-gray-900 mb-1">
+                              {transaction.itemName}
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                              {transaction.tags && transaction.tags.length > 0
+                                ? transaction.tags.join(", ")
+                                : "No tags"}
+                            </p>
+                          </div>
+                          {getStatusBadge(transaction.status)}
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">
+                              Transaction ID:
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {transaction.id}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Borrowed:</span>
+                            <span className="text-gray-700">
+                              {new Date(
+                                transaction.borrowDate
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Due Date:</span>
+                            <span className="text-gray-700">
+                              {new Date(
+                                transaction.dueDate
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {transaction.status !== "returned" && (
+                            <div className="pt-2 border-t border-black/10">
+                              {getDaysRemaining(
+                                transaction.dueDate,
+                                transaction.status
+                              )}
+                            </div>
+                          )}
+                          {transaction.status === "returned" && (
+                            <div className="flex justify-between text-sm pt-2 border-t border-black/10">
+                              <span className="text-gray-600">Returned:</span>
+                              <span className="text-gray-700">
+                                {new Date(
+                                  transaction.returnDate
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
                           )}
                         </div>
-                      )}
-                      {transaction.status === "returned" && (
-                        <div className="flex justify-between text-sm pt-2 border-t border-black/10">
-                          <span className="text-gray-600">Returned:</span>
-                          <span className="text-gray-700">
-                            {new Date(
-                              transaction.returnDate
-                            ).toLocaleDateString()}
-                          </span>
+
+                        <button
+                          onClick={() => handleViewDetails(transaction.id)}
+                          className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                          {isExpanded ? "Hide Details" : "View Details"}
+                          <svg
+                            className={`w-4 h-4 transition-transform ${
+                              isExpanded ? "rotate-180" : ""
+                            }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Expanded Details */}
+                      {isExpanded && fullTransaction && (
+                        <div className="border-t border-gray-200 bg-gray-50 p-6">
+                          <div className="space-y-4">
+                            {/* Header with Request Code */}
+                            <div className="bg-white rounded-lg p-4 border-l-4 border-(--accent) shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm text-gray-600 mb-1">
+                                    Request Code
+                                  </p>
+                                  <p className="text-xl font-bold text-gray-900">
+                                    {fullTransaction.requestCode}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-gray-600 mb-1">
+                                    Status
+                                  </p>
+                                  <div className="text-lg">
+                                    {getStatusBadge(fullTransaction.status)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Grid Layout for Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Item Information */}
+                              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                  <svg
+                                    className="w-5 h-5 text-(--accent)"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                    />
+                                  </svg>
+                                  Item Information
+                                </h3>
+                                <div className="space-y-3">
+                                  <div className="flex justify-between items-start">
+                                    <span className="text-sm text-gray-600">
+                                      Item Name
+                                    </span>
+                                    <span className="font-semibold text-gray-900 text-right">
+                                      {fullTransaction.itemId?.name}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Category
+                                    </span>
+                                    <span className="font-medium text-gray-900">
+                                      {fullTransaction.itemId?.category ||
+                                        "N/A"}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Quantity
+                                    </span>
+                                    <span className="font-semibold text-(--accent)">
+                                      {fullTransaction.quantity}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Timeline */}
+                              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                  <svg
+                                    className="w-5 h-5 text-(--accent)"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  Timeline
+                                </h3>
+                                <div className="space-y-3">
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Borrow Date
+                                    </span>
+                                    <span className="font-medium text-gray-900">
+                                      {new Date(
+                                        fullTransaction.borrowDate
+                                      ).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Due Date
+                                    </span>
+                                    <span className="font-medium text-gray-900">
+                                      {new Date(
+                                        fullTransaction.returnDate
+                                      ).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                  {fullTransaction.actualReturnDate && (
+                                    <div className="flex justify-between">
+                                      <span className="text-sm text-gray-600">
+                                        Returned On
+                                      </span>
+                                      <span className="font-medium text-(--success)">
+                                        {new Date(
+                                          fullTransaction.actualReturnDate
+                                        ).toLocaleDateString("en-US", {
+                                          year: "numeric",
+                                          month: "short",
+                                          day: "numeric",
+                                        })}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Purpose & Notes */}
+                            {(fullTransaction.purpose ||
+                              fullTransaction.notes) && (
+                              <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                  <svg
+                                    className="w-5 h-5 text-(--accent)"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                  Additional Information
+                                </h3>
+                                <div className="space-y-3">
+                                  {fullTransaction.purpose && (
+                                    <div>
+                                      <p className="text-sm text-gray-600 mb-1">
+                                        Purpose
+                                      </p>
+                                      <p className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                                        {fullTransaction.purpose}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {fullTransaction.notes && (
+                                    <div>
+                                      <p className="text-sm text-gray-600 mb-1">
+                                        Notes
+                                      </p>
+                                      <p className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                                        {fullTransaction.notes}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    <button className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                      View Details
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

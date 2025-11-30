@@ -14,11 +14,6 @@ function ProfilePage() {
               to="/profile/transactions"
               icon="box"
             />
-            <SidebarLink
-              name="Settings"
-              to="/profile/settings"
-              icon="history"
-            />
           </div>
         </div>
       </div>
