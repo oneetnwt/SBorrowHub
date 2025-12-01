@@ -18,8 +18,8 @@ import Officer from "./pages/officer/Officer";
 import OfficerDashboard from "./pages/officer/OfficerDashboard";
 import OfficerAnalytics from "./pages/officer/OfficerAnalytics";
 import OfficerInventory from "./pages/officer/OfficerInventory";
+import OfficerArchive from "./pages/officer/OfficerArchive";
 import OfficerRequests from "./pages/officer/OfficerRequests";
-import OfficerSettings from "./pages/officer/OfficerSettings";
 import OfficerTransactions from "./pages/officer/OfficerTransactions";
 import OfficerUsers from "./pages/officer/OfficerUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -30,6 +30,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPermissionControl from "./pages/admin/AdminPermissionControl";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminLog from "./pages/admin/AdminLog";
+import UserHelp from "./pages/UserHelp";
+import OfficerHelp from "./pages/officer/OfficerHelp";
 import Error from "./pages/Error";
 
 function Route() {
@@ -68,6 +70,10 @@ function Route() {
               element: <TransactionHistory />,
             },
           ],
+        },
+        {
+          path: "help",
+          element: <UserHelp />,
         },
       ],
     },
@@ -122,6 +128,10 @@ function Route() {
           element: <OfficerInventory />,
         },
         {
+          path: "archive",
+          element: <OfficerArchive />,
+        },
+        {
           path: "requests",
           element: <OfficerRequests />,
         },
@@ -138,8 +148,8 @@ function Route() {
           element: <OfficerAnalytics />,
         },
         {
-          path: "settings",
-          element: <OfficerSettings />,
+          path: "help",
+          element: <OfficerHelp />,
         },
       ],
     },

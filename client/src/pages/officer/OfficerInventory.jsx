@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../components/modals/Modal";
 import ConfirmModal from "../../components/modals/ConfirmModal";
+import Toast from "../../components/Toast";
 import axiosInstance from "../../api/axiosInstance";
 
 function OfficerInventory() {
@@ -27,9 +28,12 @@ function OfficerInventory() {
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
+  const [toast, setToast] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
 
   const categories = [
     "All",
+    "Office Supplies",
     "Electronics",
     "Cables",
     "Equipment",
@@ -69,30 +73,85 @@ function OfficerInventory() {
     return matchesSearch && matchesCategory;
   });
 
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name || formData.name.trim() === "") {
+      errors.name = "Item name is required";
+    }
+    if (!formData.description || formData.description.trim() === "") {
+      errors.description = "Description is required";
+    }
+    if (!formData.category || formData.category === "") {
+      errors.category = "Category is required";
+    }
+    if (!formData.quantity || formData.quantity <= 0) {
+      errors.quantity = "Quantity must be greater than 0";
+    }
+    if (!formData.image || formData.image.trim() === "") {
+      errors.image = "Image is required";
+    }
+    return errors;
+  };
+
   const handleAddItem = async () => {
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setToast({
+        message: "Please fill in all required fields",
+        type: "error",
+      });
+      return;
+    }
+
+    setFormErrors({});
     setLoading(true);
     try {
       const newItem = {
         ...formData,
-        available: formData.quantity || 1, // ensure available equals quantity
+        available: formData.quantity || 1,
       };
       const response = await axiosInstance.post("/catalog/add-item", newItem);
-      setItems([...items, response.data]);
+      // Backend returns { message, newItem }, so we need response.data.newItem
+      setItems([...items, response.data.newItem]);
       setIsAddModalOpen(false);
       resetForm();
+      setToast({
+        message: "Item added successfully!",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error adding item:", error);
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to add item. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditItem = async () => {
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setToast({
+        message: "Please fill in all required fields",
+        type: "error",
+      });
+      return;
+    }
+
+    setFormErrors({});
+    setLoading(true);
     try {
       const response = await axiosInstance.put(
-        `/api/items/${selectedItem._id}`,
+        `/catalog/update-item/${selectedItem._id}`,
         {
           name: formData.name,
+          description: formData.description,
           category: formData.category,
           quantity: parseInt(formData.quantity),
           condition: formData.condition,
@@ -106,23 +165,44 @@ function OfficerInventory() {
       );
       setIsEditModalOpen(false);
       resetForm();
-      alert("Item updated successfully!");
+      setToast({
+        message: "Item updated successfully!",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error updating item:", error);
-      alert("Failed to update item. Please try again.");
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to update item. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteItem = async () => {
+    setLoading(true);
     try {
-      await axiosInstance.delete(`/api/items/${selectedItem._id}`);
+      await axiosInstance.put(`/catalog/archive-item/${selectedItem._id}`);
       setItems(items.filter((item) => item._id !== selectedItem._id));
       setIsDeleteModalOpen(false);
       setSelectedItem(null);
-      alert("Item deleted successfully!");
+      setToast({
+        message: "Item archived successfully!",
+        type: "success",
+      });
     } catch (error) {
-      console.error("Error deleting item:", error);
-      alert("Failed to delete item. Please try again.");
+      console.error("Error archiving item:", error);
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to archive item. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -130,6 +210,7 @@ function OfficerInventory() {
     setSelectedItem(item);
     setFormData({
       name: item.name,
+      description: item.description,
       category: item.category,
       quantity: item.quantity.toString(),
       condition: item.condition,
@@ -160,6 +241,7 @@ function OfficerInventory() {
   const resetForm = () => {
     setFormData({
       name: "",
+      description: "",
       category: "",
       quantity: "",
       condition: "Good",
@@ -168,6 +250,7 @@ function OfficerInventory() {
     setSelectedItem(null);
     setImageFile(null);
     setImagePreview("");
+    setFormErrors({});
   };
 
   const getStockStatus = (item) => {
@@ -416,7 +499,7 @@ function OfficerInventory() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
                       />
                     </svg>
                   </button>
@@ -468,15 +551,24 @@ function OfficerInventory() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Item Image
+                Item Image <span className="text-red-500">*</span>
               </label>
               <div className="space-y-3">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent) file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-(--accent) file:text-white hover:file:bg-(--accent-dark) file:cursor-pointer"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-(--accent) file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-(--accent) file:text-white hover:file:bg-(--accent-dark) file:cursor-pointer ${
+                    formErrors.image
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:border-(--accent)"
+                  }`}
                 />
+                {formErrors.image && (
+                  <p className="text-sm text-red-600 mt-1">
+                    {formErrors.image}
+                  </p>
+                )}
                 {imagePreview && (
                   <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
                     <img
@@ -523,23 +615,39 @@ function OfficerInventory() {
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${
+                  formErrors.name
+                    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-(--accent) focus:border-(--accent)"
+                }`}
                 placeholder="Enter item name"
               />
+              {formErrors.name && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.name}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Desription <span className="text-red-500">*</span>
+                Description <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <textarea
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
-                placeholder="Enter item name"
+                rows={3}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${
+                  formErrors.description
+                    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-(--accent) focus:border-(--accent)"
+                }`}
+                placeholder="Enter item description"
               />
+              {formErrors.description && (
+                <p className="text-sm text-red-600 mt-1">
+                  {formErrors.description}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -552,7 +660,11 @@ function OfficerInventory() {
                   onChange={(e) =>
                     setFormData({ ...formData, category: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${
+                    formErrors.category
+                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:ring-(--accent) focus:border-(--accent)"
+                  }`}
                 >
                   <option value="">Select category</option>
                   {categories
@@ -563,11 +675,16 @@ function OfficerInventory() {
                       </option>
                     ))}
                 </select>
+                {formErrors.category && (
+                  <p className="text-sm text-red-600 mt-1">
+                    {formErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity *
+                  Quantity <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -578,10 +695,19 @@ function OfficerInventory() {
                       quantity: parseInt(e.target.value),
                     })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${
+                    formErrors.quantity
+                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:ring-(--accent) focus:border-(--accent)"
+                  }`}
                   placeholder="0"
-                  min="0"
+                  min="1"
                 />
+                {formErrors.quantity && (
+                  <p className="text-sm text-red-600 mt-1">
+                    {formErrors.quantity}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -642,6 +768,15 @@ function OfficerInventory() {
         confirmText="Delete"
         type="danger"
       />
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </section>
   );
 }

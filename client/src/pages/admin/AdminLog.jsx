@@ -15,14 +15,24 @@ function AdminLog() {
       try {
         setLoading(true);
 
-        const { status, data } = await axiosInstance.get("/admin/logs");
-        // Sort logs by timestamp descending (latest first)
-        const sortedLogs = data.sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        const { status, data } = await axiosInstance.get(
+          "/admin/logs?limit=100&sort=-1"
         );
+
+        // Handle new paginated response format
+        const logsData = data.logs || data;
+
+        // Sort logs by timestamp descending (latest first) if not already sorted
+        const sortedLogs = Array.isArray(logsData)
+          ? logsData.sort(
+              (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+            )
+          : [];
         setLogs(sortedLogs);
       } catch (error) {
         console.error("Error fetching logs:", error);
+        console.error("Error response:", error.response?.data);
+        setLogs([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
@@ -67,14 +77,6 @@ function AdminLog() {
     };
     return badges[method] || "bg-gray-100 text-gray-700";
   };
-
-  if (loading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center">
-        <Loader />
-      </div>
-    );
-  }
 
   return (
     <section className="h-full w-full flex flex-col overflow-y-auto p-4 pb-16 bg-gray-50">
@@ -156,7 +158,32 @@ function AdminLog() {
 
       {/* Logs Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
-        {currentLogs.length === 0 ? (
+        {loading ? (
+          <div className="flex-1 animate-pulse">
+            {/* Table Header Skeleton */}
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+              <div className="flex gap-4">
+                <div className="h-3 bg-gray-200 rounded w-24"></div>
+                <div className="h-3 bg-gray-200 rounded w-16"></div>
+                <div className="h-3 bg-gray-200 rounded flex-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-32"></div>
+                <div className="h-3 bg-gray-200 rounded w-28"></div>
+              </div>
+            </div>
+            {/* Table Rows Skeleton */}
+            <div className="divide-y divide-gray-200">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="px-4 py-3 flex gap-4 items-center">
+                  <div className="h-3 bg-gray-200 rounded w-32"></div>
+                  <div className="h-6 bg-gray-200 rounded-full w-14"></div>
+                  <div className="h-3 bg-gray-200 rounded flex-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-40"></div>
+                  <div className="h-3 bg-gray-200 rounded w-32"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : currentLogs.length === 0 ? (
           <div className="p-12 text-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"

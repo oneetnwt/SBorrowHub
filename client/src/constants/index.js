@@ -5,8 +5,12 @@ export const SORT_OPTIONS = [
 ];
 
 export const CATEGORY_OPTIONS = [
-  { id: "office", label: "Office Supplies" },
-  { id: "sports", label: "Sports Equipment" },
+  { id: "office supplies", label: "Office Supplies" },
+  { id: "electronics", label: "Electronics" },
+  { id: "cables", label: "Cables" },
+  { id: "equipment", label: "Equipment" },
+  { id: "tools", label: "Tools" },
+  { id: "others", label: "Others" },
 ];
 
 export const AVAILABILITY_OPTIONS = [

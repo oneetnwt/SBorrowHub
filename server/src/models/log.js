@@ -12,8 +12,11 @@ const logSchema = Schema({
   headers: { type: Object, default: {} }, // sanitized subset
   details: String, // truncated body JSON string
   error: { type: String, default: "" },
-  timestamp: { type: Date, default: Date.now },
+  timestamp: { type: Date, default: Date.now, index: -1 }, // Add descending index
 });
+
+// Add compound index for better query performance
+logSchema.index({ timestamp: -1, method: 1 });
 
 const LogModel = model("log", logSchema);
 

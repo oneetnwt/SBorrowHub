@@ -28,13 +28,22 @@ export const ACTIVITY_ACTIONS = [
     match: (action, method) =>
       action.includes("/request-item") && method === "POST",
     type: ACTIVITY_TYPES.BORROW,
-    getText: (item) => (item ? `Borrowed ${item}` : "Borrowed an item"),
+    getText: (item) =>
+      item ? `Requested to borrow ${item}` : "Requested to borrow an item",
+  },
+  {
+    match: (action, method) =>
+      action.includes("/catalog/request-item") && method === "POST",
+    type: ACTIVITY_TYPES.BORROW,
+    getText: (item) =>
+      item ? `Requested to borrow ${item}` : "Requested to borrow an item",
   },
   {
     match: (action, method) =>
       action.includes("/borrow-requests") && method === "POST",
     type: ACTIVITY_TYPES.BORROW,
-    getText: (item) => (item ? `Borrowed ${item}` : "Borrowed an item"),
+    getText: (item) =>
+      item ? `Requested to borrow ${item}` : "Requested to borrow an item",
   },
   {
     match: (action, method) => action.includes("/cart") && method === "POST",

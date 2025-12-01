@@ -3,6 +3,7 @@ import InformationCard from "../../components/InformationCard";
 import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import Loader from "../../components/Loader";
+import Toast from "../../components/Toast";
 import useWebSocket from "../../hooks/useWebSocket";
 import { useUserStore } from "../../store/user";
 
@@ -18,53 +19,98 @@ function OfficerDashboard() {
     overdueItems: 0,
     monthlyBorrows: 0,
   });
-  const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState({
     stats: false,
     pending: false,
     activity: false,
     lowStock: false,
+    returnPending: false,
   });
   const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [returnPendingRequests, setReturnPendingRequests] = useState([]);
   const [overdueLoans, setOverdueLoans] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(new Set());
+  const [toast, setToast] = useState(null);
 
-  // Fetch all dashboard data on mount
+  // Fetch dashboard stats independently
   useEffect(() => {
-    const fetchAllDashboardData = async () => {
-      setLoading(true);
+    const fetchStats = async () => {
       try {
-        const [statsRes, pendingRes, activityRes, lowStockRes, overdueRes] =
-          await Promise.all([
-            axiosInstance.get("/officer/dashboard-stats"),
-            axiosInstance.get("/officer/pending-requests"),
-            axiosInstance.get("/officer/recent-activity"),
-            axiosInstance.get("/catalog/get-low-stock"),
-            axiosInstance.get("/officer/overdue"),
-          ]);
-
+        const statsRes = await axiosInstance.get("/officer/dashboard-stats");
         setStats(statsRes.data);
-        setOverdueLoans(overdueRes.data);
         setDataLoaded((prev) => ({ ...prev, stats: true }));
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+        setDataLoaded((prev) => ({ ...prev, stats: true }));
+      }
+    };
+    fetchStats();
+  }, []);
 
+  // Fetch pending requests independently
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const pendingRes = await axiosInstance.get("/officer/pending-requests");
         setPendingApprovals(pendingRes.data);
         setDataLoaded((prev) => ({ ...prev, pending: true }));
+      } catch (error) {
+        console.error("Error fetching pending requests:", error);
+        setDataLoaded((prev) => ({ ...prev, pending: true }));
+      }
+    };
+    fetchPending();
+  }, []);
 
+  // Fetch overdue and return pending independently
+  useEffect(() => {
+    const fetchOverdueAndReturns = async () => {
+      try {
+        const [overdueRes, returnPendingRes] = await Promise.all([
+          axiosInstance.get("/officer/overdue"),
+          axiosInstance.get("/officer/return-pending"),
+        ]);
+        setOverdueLoans(overdueRes.data);
+        setReturnPendingRequests(returnPendingRes.data);
+        setDataLoaded((prev) => ({ ...prev, returnPending: true }));
+      } catch (error) {
+        console.error("Error fetching overdue/returns:", error);
+        setDataLoaded((prev) => ({ ...prev, returnPending: true }));
+      }
+    };
+    fetchOverdueAndReturns();
+  }, []);
+
+  // Fetch activity independently
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        const activityRes = await axiosInstance.get("/officer/recent-activity");
         setRecentActivity(activityRes.data);
         setDataLoaded((prev) => ({ ...prev, activity: true }));
+      } catch (error) {
+        console.error("Error fetching activity:", error);
+        setDataLoaded((prev) => ({ ...prev, activity: true }));
+      }
+    };
+    fetchActivity();
+  }, []);
 
+  // Fetch low stock independently
+  useEffect(() => {
+    const fetchLowStock = async () => {
+      try {
+        const lowStockRes = await axiosInstance.get("/catalog/get-low-stock");
         setLowStockItems(lowStockRes.data);
         setDataLoaded((prev) => ({ ...prev, lowStock: true }));
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching low stock:", error);
+        setDataLoaded((prev) => ({ ...prev, lowStock: true }));
       }
     };
-
-    fetchAllDashboardData();
+    fetchLowStock();
   }, []);
 
   // Listen for real-time activity updates via WebSocket
@@ -102,10 +148,30 @@ function OfficerDashboard() {
       await axiosInstance.put(`/officer/update-request-status/${requestId}`, {
         status: "approved",
       });
-      // WebSocket will handle the UI update
+
+      // Manually update the UI
+      setPendingApprovals((prev) =>
+        prev.filter((req) => req._id !== requestId)
+      );
+
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        pendingRequests: Math.max(0, prev.pendingRequests - 1),
+      }));
+
+      setToast({
+        message: "Request approved successfully!",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error approving request:", error);
-      alert("Failed to approve request. Please try again.");
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to approve request. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoadingRequests((prev) => {
         const newSet = new Set(prev);
@@ -122,10 +188,68 @@ function OfficerDashboard() {
       await axiosInstance.put(`/officer/update-request-status/${requestId}`, {
         status: "rejected",
       });
-      // WebSocket will handle the UI update
+
+      // Manually update the UI
+      setPendingApprovals((prev) =>
+        prev.filter((req) => req._id !== requestId)
+      );
+
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        pendingRequests: Math.max(0, prev.pendingRequests - 1),
+      }));
+
+      setToast({
+        message: "Request rejected successfully!",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error rejecting request:", error);
-      alert("Failed to reject request. Please try again.");
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to reject request. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setLoadingRequests((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
+
+  // Handle approve return
+  const handleApproveReturn = async (requestId) => {
+    try {
+      setLoadingRequests((prev) => new Set(prev).add(requestId));
+      await axiosInstance.put(`/officer/approve-return/${requestId}`);
+
+      // Remove from return pending list
+      setReturnPendingRequests((prev) =>
+        prev.filter((req) => req._id !== requestId)
+      );
+
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        activeLoans: Math.max(0, prev.activeLoans - 1),
+      }));
+
+      setToast({
+        message: "Return approved successfully!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error approving return:", error);
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to approve return. Please try again.",
+        type: "error",
+      });
     } finally {
       setLoadingRequests((prev) => {
         const newSet = new Set(prev);
@@ -241,16 +365,120 @@ function OfficerDashboard() {
     return colors[type] || colors.approval;
   };
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex">
-        <div className="m-auto text-center">
-          <Loader variant="spinner" size="lg" />
-          <h1>Fetching Data</h1>
+  // Skeleton component for stats
+  const StatsSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 animate-pulse"
+        >
+          <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+          <div className="h-8 bg-gray-300 rounded w-12"></div>
         </div>
-      </div>
-    );
-  }
+      ))}
+    </div>
+  );
+
+  // Skeleton component for pending approvals
+  const PendingApprovalsSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="border border-gray-200 p-4 rounded-lg animate-pulse"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 bg-gray-200 rounded"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-100 rounded w-48 mb-2"></div>
+              <div className="h-3 bg-gray-100 rounded w-24"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Skeleton component for overdue loans
+  const OverdueLoansSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="border border-gray-200 p-3 rounded-lg animate-pulse"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-gray-200 rounded"></div>
+            <div className="flex-1">
+              <div className="h-3 bg-gray-200 rounded w-24 mb-1"></div>
+              <div className="h-2 bg-gray-100 rounded w-32"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Skeleton component for recent activity
+  const RecentActivitySkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(5)].map((_, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-3 p-3 border-l-4 border-gray-200 animate-pulse"
+        >
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+          <div className="flex-1">
+            <div className="h-3 bg-gray-200 rounded w-40 mb-2"></div>
+            <div className="h-2 bg-gray-100 rounded w-24"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Skeleton component for low stock items
+  const LowStockSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="border border-gray-200 p-3 rounded-lg animate-pulse"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-200 rounded"></div>
+            <div className="flex-1">
+              <div className="h-3 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-2 bg-gray-100 rounded w-20"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Skeleton component for return pending
+  const ReturnPendingSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="border border-gray-200 p-4 rounded-lg animate-pulse"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 bg-gray-200 rounded"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-100 rounded w-48 mb-2"></div>
+              <div className="h-3 bg-gray-100 rounded w-24"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <section className="h-full w-full flex flex-col overflow-y-auto p-4 pb-20 bg-gray-50 fadeIn">
@@ -280,43 +508,47 @@ function OfficerDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <InformationCard
-          name="Total Users"
-          icon="users"
-          data={stats.totalUsers}
-        />
-        <InformationCard
-          name="Total Items"
-          icon="inventory"
-          data={stats.totalItems}
-        />
-        <InformationCard
-          name="Pending Requests"
-          icon="borrow"
-          data={stats.pendingRequests}
-        />
-        <InformationCard
-          name="Active Loans"
-          icon="list"
-          data={stats.activeLoans}
-        />
-        <InformationCard
-          name="Overdue Items"
-          icon="dashboard"
-          data={stats.overdueItems}
-        />
-        <InformationCard
-          name="Monthly Borrows"
-          icon="history"
-          data={stats.monthlyBorrows}
-        />
-      </div>
+      {!dataLoaded.stats ? (
+        <StatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <InformationCard
+            name="Total Users"
+            icon="users"
+            data={stats.totalUsers}
+          />
+          <InformationCard
+            name="Total Items"
+            icon="inventory"
+            data={stats.totalItems}
+          />
+          <InformationCard
+            name="Pending Requests"
+            icon="borrow"
+            data={stats.pendingRequests}
+          />
+          <InformationCard
+            name="Active Loans"
+            icon="list"
+            data={stats.activeLoans}
+          />
+          <InformationCard
+            name="Overdue Items"
+            icon="dashboard"
+            data={stats.overdueItems}
+          />
+          <InformationCard
+            name="Monthly Borrows"
+            icon="history"
+            data={stats.monthlyBorrows}
+          />
+        </div>
+      )}
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-5 mb-5">
-        {/* Pending Approvals - Takes 2 columns on large screens */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-black/10 p-5">
+      {/* Main Content Grid - Pending Approvals and Returns */}
+      <div className="grid lg:grid-cols-2 gap-5 mb-5">
+        {/* Pending Approvals */}
+        <div className="bg-white rounded-lg shadow-sm border border-black/10 p-5">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-xl text-gray-900">
@@ -351,139 +583,231 @@ function OfficerDashboard() {
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {pendingApprovals.length > 0 ? (
-              pendingApprovals.slice(0, 3).map((request) => (
-                <div
-                  key={request._id}
-                  className="flex gap-4 border border-black/10 p-4 rounded-lg hover:shadow-md transition-all"
-                >
-                  {/* User Avatar */}
-                  <img
-                    src={
-                      request.borrowerId?.profilePicture ||
-                      `https://ui-avatars.com/api/?name=${request.borrowerId?.firstname}+${request.borrowerId?.lastname}&background=be8443&color=fff`
-                    }
-                    alt={`${request.borrowerId?.firstname} ${request.borrowerId?.lastname}`}
-                    className="w-12 h-12 rounded-full border-2 border-gray-200 shrink-0 object-cover"
-                  />
+          {!dataLoaded.pending ? (
+            <PendingApprovalsSkeleton />
+          ) : (
+            <div className="space-y-3">
+              {pendingApprovals.length > 0 ? (
+                pendingApprovals.slice(0, 3).map((request) => (
+                  <div
+                    key={request._id}
+                    className="flex gap-4 border border-black/10 p-4 rounded-lg hover:shadow-md transition-all"
+                  >
+                    {/* User Avatar */}
+                    <img
+                      src={
+                        request.borrowerId?.profilePicture ||
+                        `https://ui-avatars.com/api/?name=${request.borrowerId?.firstname}+${request.borrowerId?.lastname}&background=be8443&color=fff`
+                      }
+                      alt={`${request.borrowerId?.firstname} ${request.borrowerId?.lastname}`}
+                      className="w-12 h-12 rounded-full border-2 border-gray-200 shrink-0 object-cover"
+                    />
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {request.borrowerId?.firstname}{" "}
-                          {request.borrowerId?.lastname}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          wants to borrow{" "}
-                          <span className="font-medium text-gray-800">
-                            {request.itemId?.name}
-                          </span>
-                        </p>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {request.borrowerId?.firstname}{" "}
+                            {request.borrowerId?.lastname}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            wants to borrow{" "}
+                            <span className="font-medium text-gray-800">
+                              {request.itemId?.name}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-gray-500">
-                        {new Date(request.createdAt).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleApprove(request._id)}
-                          disabled={loadingRequests.has(request._id)}
-                          className="px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
-                        >
-                          {loadingRequests.has(request._id) && (
-                            <svg
-                              className="animate-spin h-3 w-3"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500">
+                          {new Date(request.createdAt).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
                           )}
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(request._id)}
-                          disabled={loadingRequests.has(request._id)}
-                          className="px-3 py-1.5 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
-                        >
-                          {loadingRequests.has(request._id) && (
-                            <svg
-                              className="animate-spin h-3 w-3"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                          )}
-                          Reject
-                        </button>
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApprove(request._id)}
+                            disabled={loadingRequests.has(request._id)}
+                            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
+                          >
+                            {loadingRequests.has(request._id) && (
+                              <svg
+                                className="animate-spin h-3 w-3"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                            )}
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(request._id)}
+                            disabled={loadingRequests.has(request._id)}
+                            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
+                          >
+                            {loadingRequests.has(request._id) && (
+                              <svg
+                                className="animate-spin h-3 w-3"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                            )}
+                            Reject
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-12 w-12 mx-auto mb-3 text-gray-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-sm font-medium">No pending approvals</p>
+                  <p className="text-xs mt-1">All caught up!</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-12 w-12 mx-auto mb-3 text-gray-300"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <p className="text-sm font-medium">No pending approvals</p>
-                <p className="text-xs mt-1">All caught up!</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Overdue Loans */}
+        {/* Return Pending Requests */}
+        <div className="bg-white rounded-lg shadow-sm border border-blue-200 p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <h2 className="font-bold text-xl text-gray-900">
+                Pending Returns
+              </h2>
+            </div>
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-bold">
+              {returnPendingRequests.length}
+            </span>
+          </div>
+
+          {!dataLoaded.returnPending ? (
+            <ReturnPendingSkeleton />
+          ) : (
+            <div className="space-y-3">
+              {returnPendingRequests.length > 0 ? (
+                returnPendingRequests.slice(0, 3).map((request) => (
+                  <div
+                    key={request._id}
+                    className="border border-blue-200 bg-blue-50/50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={
+                          request.borrowerId?.profilePicture ||
+                          "/default-avatar.png"
+                        }
+                        alt={`${request.borrowerId?.firstname} ${request.borrowerId?.lastname}`}
+                        className="w-12 h-12 rounded-full border-2 border-blue-300"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm text-gray-900">
+                          {request.borrowerId?.firstname}{" "}
+                          {request.borrowerId?.lastname}
+                        </h3>
+                        <p className="text-xs text-gray-600 mb-1">
+                          {request.itemId?.name}
+                        </p>
+                        <p className="text-xs text-blue-600 font-medium">
+                          Wants to return • Qty: {request.quantity}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleApproveReturn(request._id)}
+                        disabled={loadingRequests.has(request._id)}
+                        className="px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
+                      >
+                        {loadingRequests.has(request._id) && (
+                          <svg
+                            className="animate-spin h-3 w-3"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        )}
+                        Verify Return
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No pending returns</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Overdue Borrows - Full Width */}
+      <div className="mb-5">
         <div className="bg-white rounded-lg shadow-sm border border-red-200 p-5">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
@@ -497,47 +821,51 @@ function OfficerDashboard() {
             </span>
           </div>
 
-          <div className="space-y-3">
-            {overdueLoans.length > 0 ? (
-              overdueLoans.map((loan) => (
-                <div
-                  key={loan._id || loan.id}
-                  className="border border-red-200 bg-red-50/50 p-3 rounded-lg"
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <img
-                      src={loan.userAvatar}
-                      alt={loan.userName}
-                      className="w-10 h-10 rounded-full border-2 border-red-300"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm text-gray-900 truncate">
-                        {loan.userName}
-                      </h3>
-                      <p className="text-xs text-gray-600 truncate">
-                        {loan.itemName}
+          {!dataLoaded.stats ? (
+            <OverdueLoansSkeleton />
+          ) : (
+            <div className="space-y-3">
+              {overdueLoans.length > 0 ? (
+                overdueLoans.map((loan) => (
+                  <div
+                    key={loan._id || loan.id}
+                    className="border border-red-200 bg-red-50/50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <img
+                        src={loan.userAvatar}
+                        alt={loan.userName}
+                        className="w-10 h-10 rounded-full border-2 border-red-300"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm text-gray-900 truncate">
+                          {loan.userName}
+                        </h3>
+                        <p className="text-xs text-gray-600 truncate">
+                          {loan.itemName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="pl-13">
+                      <p className="text-xs text-red-600 font-medium mb-1">
+                        {loan.daysOverdue} days overdue
                       </p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Due: {loan.dueDate}
+                      </p>
+                      <button className="w-full px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md font-medium transition-colors">
+                        Send Reminder
+                      </button>
                     </div>
                   </div>
-                  <div className="pl-13">
-                    <p className="text-xs text-red-600 font-medium mb-1">
-                      {loan.daysOverdue} days overdue
-                    </p>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Due: {loan.dueDate}
-                    </p>
-                    <button className="w-full px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md font-medium transition-colors">
-                      Send Reminder
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">No overdue items</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No overdue items</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -554,43 +882,49 @@ function OfficerDashboard() {
               </span>
             )}
           </div>
-          <div className="space-y-2">
-            {recentActivity.length > 0 ? (
-              recentActivity.slice(0, 4).map((activity) => (
-                <div
-                  key={activity._id}
-                  className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                >
+          {!dataLoaded.activity ? (
+            <RecentActivitySkeleton />
+          ) : (
+            <div className="space-y-2">
+              {recentActivity.length > 0 ? (
+                recentActivity.slice(0, 5).map((activity) => (
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${getActivityColor(
-                      activity.type
-                    )}`}
+                    key={activity._id}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
                   >
-                    {getActivityIcon(activity.type)}
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${getActivityColor(
+                        activity.type
+                      )}`}
+                    >
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">
+                        <span className="font-semibold">
+                          {activity.userName}
+                        </span>{" "}
+                        {activity.action}
+                        {activity.item && ` - ${activity.item}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(activity.timestamp).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">
-                      <span className="font-semibold">{activity.userName}</span>{" "}
-                      {activity.action}
-                      {activity.item && ` - ${activity.item}`}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(activity.timestamp).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No recent activity</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>No recent activity</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Low Stock Alert */}
@@ -613,57 +947,61 @@ function OfficerDashboard() {
             <h2 className="font-bold text-xl text-gray-900">Low Stock Alert</h2>
           </div>
 
-          <div className="space-y-3">
-            {lowStockItems.length > 0 ? (
-              lowStockItems.map((item) => (
-                <div
-                  key={item._id || item.id}
-                  className="border border-orange-200 bg-orange-50/50 p-3 rounded-lg"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-sm text-gray-900">
-                      {item.name}
-                    </h3>
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                        item.status === "critical"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {item.status.charAt(0).toUpperCase() +
-                        item.status.slice(1)}
-                    </span>
+          {!dataLoaded.lowStock ? (
+            <LowStockSkeleton />
+          ) : (
+            <div className="space-y-3">
+              {lowStockItems.length > 0 ? (
+                lowStockItems.slice(0, 3).map((item) => (
+                  <div
+                    key={item._id || item.id}
+                    className="border border-orange-200 bg-orange-50/50 p-3 rounded-lg"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-sm text-gray-900">
+                        {item.name}
+                      </h3>
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                          item.status === "critical"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {item.status.charAt(0).toUpperCase() +
+                          item.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">
+                        Current:{" "}
+                        <span className="font-bold">{item.available}</span>
+                      </span>
+                      <span className="text-gray-600">
+                        Min: <span className="font-bold">{item.quantity}</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div
+                        className={`h-2 rounded-full ${
+                          item.status === "critical"
+                            ? "bg-red-500"
+                            : "bg-yellow-500"
+                        }`}
+                        style={{
+                          width: `${(item.current / item.minimum) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-600">
-                      Current:{" "}
-                      <span className="font-bold">{item.available}</span>
-                    </span>
-                    <span className="text-gray-600">
-                      Min: <span className="font-bold">{item.quantity}</span>
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div
-                      className={`h-2 rounded-full ${
-                        item.status === "critical"
-                          ? "bg-red-500"
-                          : "bg-yellow-500"
-                      }`}
-                      style={{
-                        width: `${(item.current / item.minimum) * 100}%`,
-                      }}
-                    ></div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm">All items well stocked</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">All items well stocked</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <Link
             to="/officer/inventory"
@@ -677,7 +1015,7 @@ function OfficerDashboard() {
       {/* Quick Actions Panel */}
       <div className="bg-white rounded-lg shadow-sm border border-black/10 p-5">
         <h2 className="font-bold text-xl text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Link
             to="/officer/inventory"
             className="flex flex-col items-center gap-2 p-4 border border-black/10 rounded-lg hover:shadow-md hover:border-(--accent) transition-all group"
@@ -752,39 +1090,17 @@ function OfficerDashboard() {
               View Reports
             </span>
           </Link>
-
-          <Link
-            to="/officer/settings"
-            className="flex flex-col items-center gap-2 p-4 border border-black/10 rounded-lg hover:shadow-md hover:border-(--accent) transition-all group"
-          >
-            <div className="w-12 h-12 rounded-full bg-(--accent)/10 group-hover:bg-(--accent)/20 flex items-center justify-center transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-(--accent)"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-            </div>
-            <span className="text-sm font-semibold text-gray-900 text-center">
-              Settings
-            </span>
-          </Link>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </section>
   );
 }

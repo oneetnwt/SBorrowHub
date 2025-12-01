@@ -117,10 +117,8 @@ function UserCatalog() {
       result = result.filter((item) => {
         if (!item.category) return false;
         const itemCategory = item.category.toLowerCase();
-        return (
-          (selectedCategory === "office" && itemCategory.includes("office")) ||
-          (selectedCategory === "sports" && itemCategory.includes("sport"))
-        );
+        const selectedCat = selectedCategory.toLowerCase();
+        return itemCategory.includes(selectedCat);
       });
     }
 

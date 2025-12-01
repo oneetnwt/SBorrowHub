@@ -34,6 +34,7 @@ export const updateItemSchema = z.object({
     .optional(),
   status: z.enum(["available", "all_borrowed", "maintenance"]).optional(),
   tags: z.array(z.string()).optional(),
+  category: z.string().optional(),
   condition: z.enum(["Good", "Fair", "Needs Repair"]).optional(),
   maxBorrowDays: z.number().int().positive().optional(),
 });

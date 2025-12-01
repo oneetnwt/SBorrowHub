@@ -46,8 +46,9 @@ export const updateRequestStatus = asyncHandler(async (req, res) => {
     "pending",
     "approved",
     "rejected",
-    "returned",
     "borrowed",
+    "return_pending",
+    "returned",
   ];
   appAssert(validStatuses.includes(status), "Invalid status value", 400);
 
@@ -234,7 +235,11 @@ export const getRecentActivity = asyncHandler(async (req, res) => {
     if (isSignup && log.details) {
       try {
         const details = JSON.parse(log.details);
-        userName = `${details.firstname} ${details.lastname}`;
+        if (details.firstname && details.lastname) {
+          userName = `${details.firstname} ${details.lastname}`;
+        } else {
+          continue; // Skip if names are missing
+        }
         // Signup is always from a regular user
       } catch (err) {
         continue;
@@ -250,7 +255,11 @@ export const getRecentActivity = asyncHandler(async (req, res) => {
         );
         if (!user) continue;
 
-        userName = `${user.firstname} ${user.lastname}`;
+        if (user.firstname && user.lastname) {
+          userName = `${user.firstname} ${user.lastname}`;
+        } else {
+          continue; // Skip if names are missing
+        }
 
         // Only process users with role "user"
         if (user.role !== "user") continue;
@@ -338,4 +347,123 @@ export const getLowStockItems = asyncHandler(async (req, res) => {
   }));
 
   res.status(200).json(itemsWithStatus);
+});
+
+// Send overdue notification email
+export const sendOverdueNotification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const borrowRequest = await BorrowRequestModel.findById(id)
+    .populate("borrowerId", "firstname lastname email")
+    .populate("itemId", "name");
+
+  appAssert(borrowRequest, "Borrow request not found", 404);
+  appAssert(borrowRequest.borrowerId, "Borrower information not found", 404);
+
+  // Send email notification
+  const emailSubject = "Overdue Item Reminder - SBorrowHub";
+  const emailBody = `
+    <h2>Overdue Item Reminder</h2>
+    <p>Dear ${borrowRequest.borrowerId.firstname} ${
+    borrowRequest.borrowerId.lastname
+  },</p>
+    <p>This is a reminder that the following item is overdue:</p>
+    <ul>
+      <li><strong>Item:</strong> ${borrowRequest.itemId.name}</li>
+      <li><strong>Quantity:</strong> ${borrowRequest.quantity}</li>
+      <li><strong>Due Date:</strong> ${new Date(
+        borrowRequest.returnDate
+      ).toLocaleDateString()}</li>
+    </ul>
+    <p>Please return the item as soon as possible to avoid any penalties.</p>
+    <p>If you have already returned the item, please request return approval in your account.</p>
+    <br>
+    <p>Best regards,</p>
+    <p>SBorrowHub Team</p>
+  `;
+
+  try {
+    const { sendEmail } = await import("../utils/smtp.js");
+    await sendEmail(borrowRequest.borrowerId.email, emailSubject, emailBody);
+
+    // Create notification
+    await createNotification({
+      userId: borrowRequest.borrowerId._id,
+      title: "Overdue Item Reminder",
+      description: `Your borrowed item "${borrowRequest.itemId.name}" is overdue. Please return it as soon as possible.`,
+      status: "Action needed",
+      relatedItemId: borrowRequest.itemId._id,
+      relatedRequestId: borrowRequest._id,
+    });
+
+    res.status(200).json({ message: "Overdue notification sent successfully" });
+  } catch (error) {
+    console.error("Error sending overdue notification:", error);
+    res.status(500).json({ message: "Failed to send notification email" });
+  }
+});
+
+// Get return pending requests (items user wants to return, waiting for officer approval)
+export const getReturnPendingRequests = asyncHandler(async (req, res) => {
+  const returnPending = await BorrowRequestModel.find({
+    status: "return_pending",
+  })
+    .populate("borrowerId", "firstname lastname email profilePicture")
+    .populate("itemId", "name images")
+    .sort({ updatedAt: -1 })
+    .limit(10);
+
+  res.status(200).json(returnPending);
+});
+
+// Approve return (mark as returned)
+export const approveReturn = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const borrowRequest = await BorrowRequestModel.findById(id)
+    .populate("borrowerId", "firstname lastname email")
+    .populate("itemId", "name");
+
+  appAssert(borrowRequest, "Borrow request not found", 404);
+  appAssert(
+    borrowRequest.status === "return_pending",
+    "Only return_pending requests can be approved for return",
+    400
+  );
+
+  // Update status to returned and set return date
+  borrowRequest.status = "returned";
+  borrowRequest.actualReturnDate = new Date();
+  await borrowRequest.save();
+
+  // Increase item available count
+  await updateItemAvailableCount(
+    borrowRequest.itemId._id,
+    borrowRequest.quantity,
+    "increase"
+  );
+
+  // Create notification for user
+  await createNotification({
+    userId: borrowRequest.borrowerId._id,
+    title: "Item Return Confirmed",
+    description: `Your return of "${borrowRequest.itemId.name}" has been verified and confirmed.`,
+    status: "Completed",
+    relatedItemId: borrowRequest.itemId._id,
+    relatedRequestId: borrowRequest._id,
+  });
+
+  // Broadcast activity
+  broadcastActivity({
+    type: "return",
+    userName: `${borrowRequest.borrowerId.firstname} ${borrowRequest.borrowerId.lastname}`,
+    action: "returned",
+    item: borrowRequest.itemId.name,
+    timestamp: new Date(),
+  });
+
+  res.status(200).json({
+    message: "Return approved successfully",
+    borrowRequest,
+  });
 });

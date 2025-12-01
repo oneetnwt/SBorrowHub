@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../components/modals/Modal";
+import Toast from "../../components/Toast";
 import axiosInstance from "../../api/axiosInstance";
 
 function OfficerTransactions() {
@@ -12,6 +13,8 @@ function OfficerTransactions() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [sendingNotification, setSendingNotification] = useState(null);
 
   // Fetch transactions from backend
   useEffect(() => {
@@ -28,6 +31,77 @@ function OfficerTransactions() {
     fetchTransactions();
   }, []);
 
+  const handleApprove = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        { status: "approved" }
+      );
+
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId ? { ...txn, status: "approved" } : txn
+        )
+      );
+      setToast({ message: "Request approved successfully!", type: "success" });
+    } catch (error) {
+      console.error("Error approving request:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to approve request",
+        type: "error",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleReject = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        { status: "rejected" }
+      );
+
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId ? { ...txn, status: "rejected" } : txn
+        )
+      );
+      setToast({ message: "Request rejected", type: "success" });
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to reject request",
+        type: "error",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleSendOverdueNotification = async (transactionId) => {
+    try {
+      setSendingNotification(transactionId);
+      await axiosInstance.post(
+        `/officer/send-overdue-notification/${transactionId}`
+      );
+      setToast({
+        message: "Overdue notification sent successfully!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to send notification",
+        type: "error",
+      });
+    } finally {
+      setSendingNotification(null);
+    }
+  };
+
   const handleMarkReturned = async (transactionId) => {
     try {
       setUpdatingStatus(transactionId);
@@ -42,12 +116,17 @@ function OfficerTransactions() {
       setTransactions(
         transactions.map((txn) =>
           txn._id === transactionId
-            ? { ...txn, status: "completed", actualReturnDate: new Date() }
+            ? { ...txn, status: "returned", actualReturnDate: new Date() }
             : txn
         )
       );
+      setToast({ message: "Item marked as returned!", type: "success" });
     } catch (error) {
       console.error("Error updating transaction status:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to mark as returned",
+        type: "error",
+      });
     } finally {
       setUpdatingStatus(null);
     }
@@ -65,11 +144,15 @@ function OfficerTransactions() {
 
   const getStatusStyle = (status) => {
     const styles = {
-      completed: "bg-green-100 text-green-700",
-      active: "bg-blue-100 text-blue-700",
+      pending: "bg-yellow-100 text-yellow-700",
+      approved: "bg-blue-100 text-blue-700",
+      rejected: "bg-gray-100 text-gray-700",
+      borrowed: "bg-purple-100 text-purple-700",
+      return_pending: "bg-orange-100 text-orange-700",
+      returned: "bg-green-100 text-green-700",
       overdue: "bg-red-100 text-red-700",
     };
-    return styles[status];
+    return styles[status] || "bg-gray-100 text-gray-700";
   };
 
   const filteredTransactions = transactions.filter((txn) => {
@@ -170,34 +253,34 @@ function OfficerTransactions() {
 
       {/* Transactions Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
-        <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
-          <table className="w-full min-w-max">
+        <div className="overflow-y-auto max-h-[600px]">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                  Transaction ID
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[12%]">
+                  ID
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[17%]">
                   User
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[14%]">
                   Item
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[13%]">
                   Borrow Date
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[13%]">
                   Return Date
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[12%]">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[19%]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 overflow-scroll">
+            <tbody className="divide-y divide-gray-200">
               {filteredTransactions.map((txn) => (
                 <tr
                   key={txn._id}
@@ -207,76 +290,135 @@ function OfficerTransactions() {
                   }}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-mono text-sm font-medium text-gray-900">
+                  <td className="px-4 py-4">
+                    <span className="font-mono text-sm font-medium text-gray-900 truncate block">
                       {txn.requestCode}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
                       <img
                         src={txn.borrowerId.profilePicture}
                         alt={txn.borrowerId.fullname}
-                        className="w-10 h-10 rounded-full"
+                        className="w-8 h-8 rounded-full shrink-0"
                       />
-                      <div>
-                        <p className="font-medium text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 text-sm truncate">
                           {txn.borrowerId.fullname}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs text-gray-500 truncate">
                           {txn.borrowerId?.email}
                         </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900">
+                  <td className="px-4 py-4">
+                    <p className="font-medium text-gray-900 text-sm truncate">
                       {txn.itemId.name}
                     </p>
-                    <p className="text-sm text-gray-500">Qty: {txn.quantity}</p>
+                    <p className="text-xs text-gray-500">Qty: {txn.quantity}</p>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 text-sm text-gray-900">
                     {formatDate(txn.borrowDate)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4">
                     <p className="text-sm text-gray-900">
                       {formatDate(txn.returnDate)}
                     </p>
                     {txn.actualReturnDate && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 truncate">
                         Returned: {formatDate(txn.actualReturnDate)}
                       </p>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
+                      className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${getStatusStyle(
                         txn.status
                       )}`}
                     >
                       {txn.status.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {txn.status === "borrowed" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkReturned(txn._id);
-                        }}
-                        disabled={updatingStatus === txn._id}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {updatingStatus === txn._id
-                          ? "Updating..."
-                          : "Mark Returned"}
-                      </button>
-                    )}
-                    {txn.status === "returned" && (
-                      <span className="text-gray-500 text-sm italic">
-                        Returned
-                      </span>
-                    )}
+                  <td className="px-4 py-4">
+                    <div className="flex gap-1 flex-wrap">
+                      {/* Pending - Approve/Reject */}
+                      {txn.status === "pending" && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApprove(txn._id);
+                            }}
+                            disabled={updatingStatus === txn._id}
+                            className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingStatus === txn._id ? "..." : "Approve"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReject(txn._id);
+                            }}
+                            disabled={updatingStatus === txn._id}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingStatus === txn._id ? "..." : "Reject"}
+                          </button>
+                        </>
+                      )}
+
+                      {/* Borrowed - Check if overdue and show notify button */}
+                      {txn.status === "borrowed" && (
+                        <>
+                          {new Date(txn.returnDate) < new Date() && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendOverdueNotification(txn._id);
+                              }}
+                              disabled={sendingNotification === txn._id}
+                              className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {sendingNotification === txn._id
+                                ? "Sending..."
+                                : "Notify"}
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {/* Return Pending - Mark as Returned */}
+                      {txn.status === "return_pending" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkReturned(txn._id);
+                          }}
+                          disabled={updatingStatus === txn._id}
+                          className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {updatingStatus === txn._id ? "..." : "Mark Returned"}
+                        </button>
+                      )}
+
+                      {/* Returned */}
+                      {txn.status === "returned" && (
+                        <span className="text-gray-500 text-xs italic">
+                          Returned
+                        </span>
+                      )}
+
+                      {/* Approved/Rejected - No actions */}
+                      {(txn.status === "approved" ||
+                        txn.status === "rejected") && (
+                        <span className="text-gray-500 text-xs italic">
+                          {txn.status === "approved"
+                            ? "Awaiting pickup"
+                            : "No actions"}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -352,9 +494,9 @@ function OfficerTransactions() {
                     </p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Condition</p>
+                    <p className="text-xs text-gray-500 mb-1">Purpose</p>
                     <p className="font-semibold text-gray-900">
-                      {selectedTransaction.condition}
+                      {selectedTransaction.purpose || "Not specified"}
                     </p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-lg">
@@ -462,6 +604,15 @@ function OfficerTransactions() {
           </div>
         )}
       </Modal>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </section>
   );
 }

@@ -119,6 +119,7 @@ function Topbar() {
                   : []),
                 { name: "View Profile", to: "/profile" },
                 { name: "View Transaction", to: "/profile/transactions" },
+                { name: "Help & Support", to: "/help" },
               ]}
             />
           )}

@@ -37,11 +37,22 @@ export const getAllOfficer = asyncHandler(async (req, res) => {
 });
 
 export const getLogs = asyncHandler(async (req, res) => {
-  const logs = await LogModel.find().sort({ createdAt: 1 });
+  const { limit = 500, skip = 0, sort = -1 } = req.query;
 
-  appAssert(logs.length > 0, "No logs found", 400);
+  const logs = await LogModel.find()
+    .sort({ timestamp: parseInt(sort) })
+    .limit(parseInt(limit))
+    .skip(parseInt(skip))
+    .lean(); // Use lean() for faster queries
 
-  res.status(200).json(logs);
+  const totalCount = await LogModel.countDocuments();
+
+  // Return empty array if no logs, don't throw error
+  res.status(200).json({
+    logs: logs || [],
+    total: totalCount,
+    hasMore: totalCount > parseInt(skip) + parseInt(limit),
+  });
 });
 
 export const getUptime = asyncHandler(async (req, res) => {

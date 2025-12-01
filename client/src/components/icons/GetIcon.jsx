@@ -15,6 +15,7 @@ import Box from "./Box";
 import Person from "./Person";
 import Settings from "./Settings";
 import Log from "./Log";
+import Help from "./Help";
 
 function GetIcon({ icon }) {
   const icons = new Map();
@@ -36,6 +37,7 @@ function GetIcon({ icon }) {
   icons.set("person", <Person />);
   icons.set("settings", <Settings />);
   icons.set("log", <Log />);
+  icons.set("help", <Help />);
 
   return icons.get(icon);
 }

@@ -27,6 +27,8 @@ export const addItem = asyncHandler(async (req, res) => {
     image: uploadResponse.secure_url,
     quantity: body.quantity,
     available: body.available,
+    category: body.category,
+    condition: body.condition,
   });
 
   await newItem.save();
@@ -34,7 +36,7 @@ export const addItem = asyncHandler(async (req, res) => {
 });
 
 export const getAllItem = asyncHandler(async (req, res) => {
-  const items = await ItemModel.find();
+  const items = await ItemModel.find({ isArchived: { $ne: true } });
 
   appAssert(items.length > 0, "No items found", 400);
 
@@ -53,10 +55,46 @@ export const updateItem = asyncHandler(async (req, res) => {
     runValidators: true,
   });
 
-  res.status(200).json({
-    message: "Item updated successfully",
-    item: updatedItem,
-  });
+  res.status(200).json(updatedItem);
+});
+
+export const archiveItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const item = await ItemModel.findById(id);
+  appAssert(item, "Item not found", 404);
+
+  const archivedItem = await ItemModel.findByIdAndUpdate(
+    id,
+    { isArchived: true },
+    { new: true, runValidators: true }
+  );
+
+  res
+    .status(200)
+    .json({ message: "Item archived successfully", item: archivedItem });
+});
+
+export const getArchivedItems = asyncHandler(async (req, res) => {
+  const items = await ItemModel.find({ isArchived: true });
+  res.status(200).json(items);
+});
+
+export const unarchiveItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const item = await ItemModel.findById(id);
+  appAssert(item, "Item not found", 404);
+
+  const unarchivedItem = await ItemModel.findByIdAndUpdate(
+    id,
+    { isArchived: false },
+    { new: true, runValidators: true }
+  );
+
+  res
+    .status(200)
+    .json({ message: "Item unarchived successfully", item: unarchivedItem });
 });
 
 export const createBorrowRequest = asyncHandler(async (req, res) => {
@@ -148,6 +186,97 @@ export const getRequestItem = asyncHandler(async (req, res) => {
 export const getLowStock = asyncHandler(async (req, res) => {
   const item = await ItemModel.find({ available: { $lte: 1 } });
   res.status(200).json(item);
+});
+
+export const markAsPickedUp = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id; // Use req.user._id instead of req.userId
+
+  console.log("markAsPickedUp - Transaction ID:", id);
+  console.log("markAsPickedUp - User ID from token:", userId);
+
+  const borrowRequest = await BorrowRequestModel.findById(id);
+
+  if (!borrowRequest) {
+    console.log("markAsPickedUp - Borrow request not found");
+    return res.status(404).json({ message: "Borrow request not found" });
+  }
+
+  console.log(
+    "markAsPickedUp - BorrowerId from DB:",
+    borrowRequest.borrowerId.toString()
+  );
+  console.log("markAsPickedUp - Current status:", borrowRequest.status);
+
+  // Convert both to strings for comparison
+  if (borrowRequest.borrowerId.toString() !== userId.toString()) {
+    console.log("markAsPickedUp - Authorization failed");
+    return res.status(403).json({ message: "Unauthorized action" });
+  }
+
+  if (borrowRequest.status !== "approved") {
+    console.log("markAsPickedUp - Status check failed");
+    return res.status(400).json({
+      message: "Only approved requests can be marked as picked up",
+    });
+  }
+
+  borrowRequest.status = "borrowed";
+  borrowRequest.actualBorrowDate = new Date();
+  await borrowRequest.save();
+
+  console.log("markAsPickedUp - Successfully updated to borrowed");
+
+  res.status(200).json({
+    message: "Item marked as picked up successfully",
+    borrowRequest,
+  });
+});
+
+// Request return approval (user wants to return borrowed item)
+export const requestReturnApproval = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  console.log("requestReturnApproval - Transaction ID:", id);
+  console.log("requestReturnApproval - User ID from token:", userId);
+
+  const borrowRequest = await BorrowRequestModel.findById(id);
+
+  if (!borrowRequest) {
+    console.log("requestReturnApproval - Borrow request not found");
+    return res.status(404).json({ message: "Borrow request not found" });
+  }
+
+  console.log(
+    "requestReturnApproval - BorrowerId from DB:",
+    borrowRequest.borrowerId.toString()
+  );
+  console.log("requestReturnApproval - Current status:", borrowRequest.status);
+
+  // Verify user owns this request
+  if (borrowRequest.borrowerId.toString() !== userId.toString()) {
+    console.log("requestReturnApproval - Authorization failed");
+    return res.status(403).json({ message: "Unauthorized action" });
+  }
+
+  // Only borrowed items can request return
+  if (borrowRequest.status !== "borrowed") {
+    console.log("requestReturnApproval - Status check failed");
+    return res.status(400).json({
+      message: "Only borrowed items can request return approval",
+    });
+  }
+
+  borrowRequest.status = "return_pending";
+  await borrowRequest.save();
+
+  console.log("requestReturnApproval - Successfully updated to return_pending");
+
+  res.status(200).json({
+    message: "Return request submitted successfully",
+    borrowRequest,
+  });
 });
 
 export const getItemsWithAvailability = asyncHandler(async (req, res) => {

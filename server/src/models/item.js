@@ -19,6 +19,7 @@ const itemSchema = mongoose.Schema(
       default: "Good",
     },
     maxBorrowDays: { type: Number, default: 30 },
+    isArchived: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
