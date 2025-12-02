@@ -9,11 +9,16 @@ function BorrowCart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [borrowDate, setBorrowDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [purpose, setPurpose] = useState("");
 
   useEffect(() => {
     fetchCart();
+    // Set default borrow date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setBorrowDate(tomorrow.toISOString().split("T")[0]);
   }, []);
 
   const fetchCart = async () => {
@@ -108,6 +113,11 @@ function BorrowCart() {
   };
 
   const handleSubmitRequest = async () => {
+    if (!borrowDate) {
+      toast.error("Please select a borrow date");
+      return;
+    }
+
     if (!returnDate) {
       toast.error("Please select a return date");
       return;
@@ -126,11 +136,10 @@ function BorrowCart() {
     setSubmitting(true);
 
     try {
-      // Set borrow date to tomorrow to avoid timezone/validation issues
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      const borrowDateISO = tomorrow.toISOString();
+      // Convert borrowDate from YYYY-MM-DD to ISO string
+      const borrowDateObj = new Date(borrowDate);
+      borrowDateObj.setHours(0, 0, 0, 0);
+      const borrowDateISO = borrowDateObj.toISOString();
 
       // Convert returnDate from YYYY-MM-DD to ISO string
       const returnDateObj = new Date(returnDate);
@@ -138,8 +147,8 @@ function BorrowCart() {
       const returnDateISO = returnDateObj.toISOString();
 
       // Validate that return date is after borrow date
-      if (returnDateObj <= tomorrow) {
-        toast.error("Return date must be after tomorrow");
+      if (returnDateObj <= borrowDateObj) {
+        toast.error("Return date must be after borrow date");
         setSubmitting(false);
         return;
       }
@@ -390,6 +399,27 @@ function BorrowCart() {
                       </p>
                     </div>
 
+                    {/* Borrow Date */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-3">
+                        Borrow Date
+                      </label>
+                      <input
+                        type="date"
+                        min={
+                          new Date(Date.now() + 86400000)
+                            .toISOString()
+                            .split("T")[0]
+                        }
+                        value={borrowDate}
+                        onChange={(e) => setBorrowDate(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent bg-white shadow-sm"
+                      />
+                      <p className="mt-2 text-xs text-gray-500">
+                        When you plan to pick up the items
+                      </p>
+                    </div>
+
                     {/* Return Date */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-3">
@@ -398,6 +428,7 @@ function BorrowCart() {
                       <input
                         type="date"
                         min={
+                          borrowDate ||
                           new Date(Date.now() + 86400000)
                             .toISOString()
                             .split("T")[0]
@@ -407,7 +438,7 @@ function BorrowCart() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent bg-white shadow-sm"
                       />
                       <p className="mt-2 text-xs text-gray-500">
-                        All items will be due on this date
+                        When you will return all items
                       </p>
                     </div>
 

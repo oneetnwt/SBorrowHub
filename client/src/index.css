@@ -115,3 +115,24 @@ button {
 .fadeIn {
   animation: fadeIn 0.3s ease forwards;
 }
+
+/* Toast notifications - ensure they appear above everything */
+[data-sonner-toaster],
+[data-hot-toast],
+.react-hot-toast,
+.__react-hot-toast {
+  z-index: 999999 !important;
+  position: fixed !important;
+}
+
+[data-sonner-toast],
+[data-hot-toast] > div,
+.react-hot-toast > div,
+.__react-hot-toast > div {
+  z-index: 999999 !important;
+}
+
+/* Ensure react-hot-toast container is properly positioned */
+div[style*="position: fixed"] > div[style*="pointer-events"] {
+  z-index: 999999 !important;
+}

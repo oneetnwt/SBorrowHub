@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
-import Toast from "../components/Toast";
+import toast from "react-hot-toast";
 
 function TransactionHistory() {
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -9,7 +9,6 @@ function TransactionHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [toast, setToast] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
   // Fetch transactions from backend
@@ -17,10 +16,6 @@ function TransactionHistory() {
     const fetchTransactions = async () => {
       try {
         setIsLoading(true);
-        setToast({
-          message: "Loading transactions...",
-          type: "success",
-        });
         setTransactions([]); // Clear existing transactions
         const response = await axiosInstance.get("/catalog/get-request-item");
         console.log("Fetched transactions:", response.data);
@@ -32,17 +27,13 @@ function TransactionHistory() {
 
         setTransactions(data || []);
         setError(null);
-        setToast(null); // Clear loading toast on success
       } catch (err) {
         console.error("Error fetching transactions:", err);
         setTransactions([]); // Clear transactions on error
         const errorMessage =
           err.response?.data?.message || "Failed to load transactions";
         setError(errorMessage);
-        setToast({
-          message: errorMessage,
-          type: "error",
-        });
+        toast.error(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -156,10 +147,7 @@ function TransactionHistory() {
       );
 
       // Show success toast
-      setToast({
-        message: "Item marked as picked up successfully!",
-        type: "success",
-      });
+      toast.success("Item marked as picked up successfully!");
       console.log("✅ SUCCESS: Toast displayed - Item marked as picked up");
     } catch (error) {
       console.error("Error marking as picked up:", error);
@@ -182,10 +170,7 @@ function TransactionHistory() {
       }
 
       // Show error toast
-      setToast({
-        message: errorMessage,
-        type: "error",
-      });
+      toast.error(errorMessage);
       console.log("❌ ERROR: Toast displayed -", errorMessage);
     } finally {
       setUpdatingStatus(null);
@@ -215,11 +200,9 @@ function TransactionHistory() {
         )
       );
 
-      setToast({
-        message:
-          "Return request submitted successfully! Waiting for officer approval.",
-        type: "success",
-      });
+      toast.success(
+        "Return request submitted successfully! Waiting for officer approval."
+      );
       console.log("✅ SUCCESS: Return request submitted");
     } catch (error) {
       console.error("Error requesting return:", error);
@@ -238,10 +221,7 @@ function TransactionHistory() {
         errorMessage = "Network error - please check your connection";
       }
 
-      setToast({
-        message: errorMessage,
-        type: "error",
-      });
+      toast.error(errorMessage);
       console.log("❌ ERROR:", errorMessage);
     } finally {
       setUpdatingStatus(null);
@@ -694,15 +674,6 @@ function TransactionHistory() {
           </>
         )}
       </section>
-
-      {/* Toast Notification - Outside section for proper z-index */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </>
   );
 }

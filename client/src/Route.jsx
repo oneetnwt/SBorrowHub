@@ -10,6 +10,7 @@ import BorrowCart from "./pages/BorrowCart";
 import ProfilePage from "./pages/ProfilePage";
 import Profile from "./pages/Profile";
 import TransactionHistory from "./pages/TransactionHistory";
+import ChangePassword from "./pages/ChangePassword";
 import Authentication from "./pages/Authentication";
 import Signup from "./pages/Signup";
 import TermsOfService from "./pages/TermsOfService";
@@ -69,6 +70,10 @@ function Route() {
             {
               path: "transactions",
               element: <TransactionHistory />,
+            },
+            {
+              path: "change-password",
+              element: <ChangePassword />,
             },
           ],
         },

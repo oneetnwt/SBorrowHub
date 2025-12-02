@@ -14,6 +14,11 @@ function ProfilePage() {
               to="/profile/transactions"
               icon="box"
             />
+            <SidebarLink
+              name="Change Password"
+              to="/profile/change-password"
+              icon="lock"
+            />
           </div>
         </div>
       </div>

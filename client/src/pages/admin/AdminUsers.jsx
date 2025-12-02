@@ -83,7 +83,9 @@ function AdminUsers() {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || user.role === filterRole;
     const matchesStatus =
-      filterStatus === "all" || user.status === filterStatus;
+      filterStatus === "all" ||
+      (filterStatus === "online" && user.isOnline) ||
+      (filterStatus === "offline" && !user.isOnline);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -109,9 +111,9 @@ function AdminUsers() {
           <p className="text-2xl font-bold text-gray-900">{users.length}</p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
-          <p className="text-green-600 text-xs mb-0.5">Active Users</p>
+          <p className="text-green-600 text-xs mb-0.5">Online Now</p>
           <p className="text-2xl font-bold text-green-700">
-            {users.filter((u) => u.status === "active").length}
+            {users.filter((u) => u.isOnline).length}
           </p>
         </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
@@ -172,9 +174,8 @@ function AdminUsers() {
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
           >
             <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-            <option value="inactive">Inactive</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
           </select>
 
           {/* View Mode Toggle */}

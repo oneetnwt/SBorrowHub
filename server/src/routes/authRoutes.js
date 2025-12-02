@@ -14,6 +14,7 @@ import {
   verifyCaptcha,
   verifyCode,
   verifyEmail,
+  changePassword,
 } from "../controllers/authController.js";
 
 const router = Router();
@@ -33,6 +34,7 @@ router.get("/check-auth", protectRoute, checkAuth);
 router.get("/check-role", protectRoute, checkRole);
 
 router.put("/update-profile", protectRoute, updateProfile);
+router.put("/change-password", protectRoute, changePassword);
 
 router.get(
   "/google",

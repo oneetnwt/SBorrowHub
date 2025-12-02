@@ -37,6 +37,7 @@ export const forgotPasswordSchema = z.object({
 
 export const updateProfileSchema = z.object({
   firstname: z.string().min(1, "Please provide a firstname").optional(),
+  lastname: z.string().min(1, "Please provide a lastname").optional(),
   email: z.string().email("Invalid email address").optional(),
   phoneNumber: z
     .string()
@@ -45,4 +46,16 @@ export const updateProfileSchema = z.object({
   college: z.string().optional(),
   department: z.string().optional(),
   profilePicture: z.string().optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(PASSWORD_LENGTH, "Password must have at least 8 characters"),
+  newPassword: z
+    .string()
+    .min(PASSWORD_LENGTH, "Password must have at least 8 characters"),
+  confirmPassword: z
+    .string()
+    .min(PASSWORD_LENGTH, "Password must have at least 8 characters"),
 });

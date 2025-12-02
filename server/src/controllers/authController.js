@@ -8,6 +8,7 @@ import {
   loginSchema,
   signupSchema,
   updateProfileSchema,
+  changePasswordSchema,
 } from "../schema/userSchema.js";
 import { appAssert } from "../errors/appAssert.js";
 import UserModel from "../models/user.js";
@@ -413,4 +414,39 @@ export const verifyCaptcha = asyncHandler(async (req, res) => {
 
 export const checkRole = asyncHandler(async (req, res) => {
   res.status(200).json(req.user.role);
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const body = changePasswordSchema.parse(req.body);
+
+  const user = await UserModel.findById(req.user._id);
+  appAssert(user, "User not found", 404);
+
+  // Verify current password
+  const isMatch = await bcrypt.compare(body.currentPassword, user.password);
+  appAssert(isMatch, "Current password is incorrect", 401);
+
+  // Check if new password matches confirmation
+  appAssert(
+    body.newPassword === body.confirmPassword,
+    "New passwords do not match",
+    400
+  );
+
+  // Check if new password is different from current password
+  const isSamePassword = await bcrypt.compare(body.newPassword, user.password);
+  appAssert(
+    !isSamePassword,
+    "New password must be different from current password",
+    400
+  );
+
+  // Hash and save new password
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(body.newPassword, salt);
+  await user.save();
+
+  res.status(200).json({
+    message: "Password changed successfully",
+  });
 });
