@@ -156,7 +156,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   });
   const overdueItems = await BorrowRequestModel.countDocuments({
     status: "borrowed",
-    dueDate: { $lt: new Date() },
+    returnDate: { $lt: new Date() },
   });
 
   // Monthly borrows (current month)
@@ -190,21 +190,21 @@ export const getPendingRequests = asyncHandler(async (req, res) => {
   res.status(200).json(pendingRequests);
 });
 
-// TODO: Get overdue loans
+// Get overdue loans
 export const getOverdue = asyncHandler(async (req, res) => {
   const overdueLoans = await BorrowRequestModel.find({
     status: "borrowed",
-    dueDate: { $lt: new Date() },
+    returnDate: { $lt: new Date() },
   })
     .populate("borrowerId", "firstname lastname email profilePicture")
     .populate("itemId", "name")
-    .sort({ dueDate: 1 })
+    .sort({ returnDate: 1 })
     .limit(10);
 
   // Calculate days overdue
   const loansWithOverdue = overdueLoans.map((loan) => {
     const daysOverdue = Math.floor(
-      (new Date() - new Date(loan.dueDate)) / (1000 * 60 * 60 * 24)
+      (new Date() - new Date(loan.returnDate)) / (1000 * 60 * 60 * 24)
     );
     return {
       ...loan.toObject(),
@@ -212,80 +212,110 @@ export const getOverdue = asyncHandler(async (req, res) => {
     };
   });
 
-  res.status(200).json(loansWithOverdue, overdueLoans);
+  res.status(200).json(loansWithOverdue);
 });
 
 // Get recent activity from logs (user activities only)
 export const getRecentActivity = asyncHandler(async (req, res) => {
-  const logs = await LogModel.find().sort({ timestamp: -1 });
+  // Fetch only the most recent 200 logs to process (increase from 100)
+  const logs = await LogModel.find().sort({ timestamp: -1 }).limit(200).lean();
+
+  console.log(`Found ${logs.length} logs total`);
+
+  // Extract all unique user IDs from logs
+  const userIds = [
+    ...new Set(
+      logs.map((log) => log.userId).filter((id) => id && id !== "anonymous")
+    ),
+  ];
+
+  console.log(`Found ${userIds.length} unique user IDs`);
+
+  // Fetch all users in one query
+  const users = await UserModel.find({ _id: { $in: userIds } })
+    .select("firstname lastname role")
+    .lean();
+
+  console.log(
+    `Found ${users.length} users, roles:`,
+    users.map((u) => u.role)
+  );
+
+  // Create a user lookup map for O(1) access
+  const userMap = new Map(users.map((user) => [user._id.toString(), user]));
+
+  // Extract item IDs from log details in one pass
+  const itemIds = new Set();
+  const logDetailsMap = new Map();
+
+  for (const log of logs) {
+    if (log.details) {
+      try {
+        const details = JSON.parse(log.details);
+        logDetailsMap.set(log._id.toString(), details);
+        if (details.itemId) {
+          itemIds.add(details.itemId);
+        }
+      } catch (err) {
+        // Skip invalid JSON
+      }
+    }
+  }
+
+  // Fetch all items in one query
+  const items = await ItemModel.find({ _id: { $in: Array.from(itemIds) } })
+    .select("name")
+    .lean();
+
+  // Create an item lookup map for O(1) access
+  const itemMap = new Map(
+    items.map((item) => [item._id.toString(), item.name])
+  );
 
   const userActivities = [];
 
   for (const log of logs) {
-    // Skip if already have enough activities
+    // Stop if we have enough activities
     if (userActivities.length >= 20) break;
 
     let userName = "User";
     let type = "user";
     let item = "";
     let action = "";
-    let isSignup = log.action.includes("/auth/signup");
+    const isSignup = log.action.includes("/auth/signup");
 
-    // Handle signup specially (user doesn't exist yet when log is created)
-    if (isSignup && log.details) {
-      try {
-        const details = JSON.parse(log.details);
-        if (details.firstname && details.lastname) {
-          userName = `${details.firstname} ${details.lastname}`;
-        } else {
-          continue; // Skip if names are missing
-        }
-        // Signup is always from a regular user
-      } catch (err) {
+    // Handle signup specially
+    if (isSignup) {
+      const details = logDetailsMap.get(log._id.toString());
+      if (details?.firstname && details?.lastname) {
+        userName = `${details.firstname} ${details.lastname}`;
+      } else {
         continue;
       }
     } else {
       // Skip anonymous users for non-signup activities
       if (!log.userId || log.userId === "anonymous") continue;
 
-      // Try to get user info
-      try {
-        const user = await UserModel.findById(log.userId).select(
-          "firstname lastname role"
-        );
-        if (!user) continue;
+      // Get user from map
+      const user = userMap.get(log.userId);
+      if (!user) continue;
 
-        if (user.firstname && user.lastname) {
-          userName = `${user.firstname} ${user.lastname}`;
-        } else {
-          continue; // Skip if names are missing
-        }
-
-        // Only process users with role "user"
-        if (user.role !== "user") continue;
-      } catch (err) {
+      if (user.firstname && user.lastname) {
+        userName = `${user.firstname} ${user.lastname}`;
+      } else {
         continue;
       }
+
+      // No longer filtering by role - show all user activities regardless of role
     }
 
-    // Determine action based on log - display all activities
+    // Determine action based on log
     const method = log.action.split(" ")[0];
 
-    // Try to extract item info from log details
-    try {
-      if (log.details) {
-        const details = JSON.parse(log.details);
-        if (details.itemId) {
-          const itemData = await ItemModel.findById(details.itemId).select(
-            "name"
-          );
-          if (itemData) {
-            item = itemData.name;
-          }
-        }
-      }
-    } catch (err) {
-      // Continue without item name if parsing fails
+    // Get item name from map
+    const details = logDetailsMap.get(log._id.toString());
+    if (details?.itemId) {
+      item = itemMap.get(details.itemId) || "";
     }
 
     // Match action with predefined patterns
@@ -321,6 +351,12 @@ export const getRecentActivity = asyncHandler(async (req, res) => {
   }
 
   console.log(`Returning ${userActivities.length} user activities`);
+
+  // If no activities found, return a sample activity for debugging
+  if (userActivities.length === 0) {
+    console.log("No user activities found. Sample log:", logs[0]);
+  }
+
   res.status(200).json(userActivities);
 });
 
@@ -383,8 +419,8 @@ export const sendOverdueNotification = asyncHandler(async (req, res) => {
   `;
 
   try {
-    const { sendEmail } = await import("../utils/smtp.js");
-    await sendEmail(borrowRequest.borrowerId.email, emailSubject, emailBody);
+    const { sendMail } = await import("../utils/smtp.js");
+    await sendMail(borrowRequest.borrowerId.email, emailSubject, emailBody);
 
     // Create notification
     await createNotification({

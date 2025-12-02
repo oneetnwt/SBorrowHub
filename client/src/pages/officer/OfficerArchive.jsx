@@ -159,34 +159,30 @@ const OfficerArchive = () => {
           <p className="text-gray-500 text-lg">No archived items found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredItems.map((item) => (
             <div
               key={item._id}
               className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow border border-gray-200"
             >
-              <div className="aspect-square overflow-hidden bg-gray-100">
+              <div className="aspect-video overflow-hidden bg-gray-100">
                 <img
                   src={item.image}
                   alt={item.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-800 mb-1 truncate">
+              <div className="p-3">
+                <h3 className="font-semibold text-sm text-gray-800 mb-0.5 truncate">
                   {item.name}
                 </h3>
                 <p className="text-xs text-gray-500 mb-2">{item.category}</p>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                  {item.description}
-                </p>
-                <div className="flex items-center justify-between text-sm mb-3">
+                <div className="flex items-center justify-between text-xs mb-2">
                   <span className="text-gray-600">
-                    Quantity:{" "}
-                    <span className="font-medium">{item.quantity}</span>
+                    Qty: <span className="font-medium">{item.quantity}</span>
                   </span>
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                       item.condition === "Good"
                         ? "bg-green-100 text-green-800"
                         : item.condition === "Fair"
@@ -199,10 +195,10 @@ const OfficerArchive = () => {
                 </div>
                 <button
                   onClick={() => openRestoreModal(item)}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="w-full bg-blue-600 text-white py-1.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
                   disabled={loading}
                 >
-                  Restore Item
+                  Restore
                 </button>
               </div>
             </div>

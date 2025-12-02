@@ -8,7 +8,7 @@ import useWebSocket from "../../hooks/useWebSocket";
 import { useUserStore } from "../../store/user";
 
 function OfficerDashboard() {
-  const { user } = useUserStore((state) => state.user);
+  const user = useUserStore((state) => state.user);
   const { isConnected, lastMessage } = useWebSocket(user?._id);
 
   const [stats, setStats] = useState({
@@ -32,6 +32,7 @@ function OfficerDashboard() {
   const [recentActivity, setRecentActivity] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(new Set());
+  const [sendingNotification, setSendingNotification] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Fetch dashboard stats independently
@@ -88,6 +89,7 @@ function OfficerDashboard() {
     const fetchActivity = async () => {
       try {
         const activityRes = await axiosInstance.get("/officer/recent-activity");
+        console.log("Recent activity response:", activityRes.data);
         setRecentActivity(activityRes.data);
         setDataLoaded((prev) => ({ ...prev, activity: true }));
       } catch (error) {
@@ -256,6 +258,31 @@ function OfficerDashboard() {
         newSet.delete(requestId);
         return newSet;
       });
+    }
+  };
+
+  // Handle sending overdue notification
+  const handleSendOverdueNotification = async (requestId) => {
+    try {
+      setSendingNotification(requestId);
+      await axiosInstance.post(
+        `/officer/send-overdue-notification/${requestId}`
+      );
+
+      setToast({
+        message: "Overdue notification sent successfully!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error sending overdue notification:", error);
+      setToast({
+        message:
+          error.response?.data?.message ||
+          "Failed to send notification. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setSendingNotification(null);
     }
   };
 
@@ -828,33 +855,49 @@ function OfficerDashboard() {
               {overdueLoans.length > 0 ? (
                 overdueLoans.map((loan) => (
                   <div
-                    key={loan._id || loan.id}
+                    key={loan._id}
                     className="border border-red-200 bg-red-50/50 p-3 rounded-lg"
                   >
                     <div className="flex items-center gap-3 mb-2">
                       <img
-                        src={loan.userAvatar}
-                        alt={loan.userName}
-                        className="w-10 h-10 rounded-full border-2 border-red-300"
+                        src={
+                          loan.borrowerId?.profilePicture ||
+                          "https://via.placeholder.com/40"
+                        }
+                        alt={`${loan.borrowerId?.firstname} ${loan.borrowerId?.lastname}`}
+                        className="w-10 h-10 rounded-full border-2 border-red-300 object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm text-gray-900 truncate">
-                          {loan.userName}
+                          {loan.borrowerId?.firstname}{" "}
+                          {loan.borrowerId?.lastname}
                         </h3>
                         <p className="text-xs text-gray-600 truncate">
-                          {loan.itemName}
+                          {loan.itemId?.name}
                         </p>
                       </div>
                     </div>
                     <div className="pl-13">
                       <p className="text-xs text-red-600 font-medium mb-1">
-                        {loan.daysOverdue} days overdue
+                        {loan.daysOverdue}{" "}
+                        {loan.daysOverdue === 1 ? "day" : "days"} overdue
                       </p>
                       <p className="text-xs text-gray-500 mb-2">
-                        Due: {loan.dueDate}
+                        Due:{" "}
+                        {new Date(loan.returnDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </p>
-                      <button className="w-full px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-md font-medium transition-colors">
-                        Send Reminder
+                      <button
+                        onClick={() => handleSendOverdueNotification(loan._id)}
+                        disabled={sendingNotification === loan._id}
+                        className="w-full px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-xs rounded-md font-medium transition-colors"
+                      >
+                        {sendingNotification === loan._id
+                          ? "Sending..."
+                          : "Send Reminder"}
                       </button>
                     </div>
                   </div>

@@ -156,13 +156,32 @@ function OfficerTransactions() {
   };
 
   const filteredTransactions = transactions.filter((txn) => {
-    const matchesStatus = filterStatus === "all" || txn.status === filterStatus;
+    let matchesStatus = true;
+
+    if (filterStatus !== "all") {
+      // Map filter categories to actual database statuses
+      if (filterStatus === "pending") {
+        matchesStatus = txn.status === "pending";
+      } else if (filterStatus === "approved") {
+        matchesStatus = txn.status === "approved";
+      } else if (filterStatus === "borrowed") {
+        matchesStatus =
+          txn.status === "borrowed" || txn.status === "return_pending";
+      } else if (filterStatus === "returned") {
+        matchesStatus = txn.status === "returned";
+      } else if (filterStatus === "rejected") {
+        matchesStatus = txn.status === "rejected";
+      }
+    }
+
     const matchesSearch =
       (txn.borrowerId?.fullname || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      (txn.item || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (txn.id || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (txn.itemId?.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (txn.requestCode || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -179,29 +198,39 @@ function OfficerTransactions() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
-          <p className="text-gray-500 text-xs mb-0.5">Total Transactions</p>
+          <p className="text-gray-500 text-xs mb-0.5">Total</p>
           <p className="text-2xl font-bold text-gray-900">
             {transactions.length}
           </p>
         </div>
+        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 shadow-sm">
+          <p className="text-yellow-600 text-xs mb-0.5">Pending</p>
+          <p className="text-2xl font-bold text-yellow-700">
+            {transactions.filter((t) => t.status === "pending").length}
+          </p>
+        </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
-          <p className="text-blue-600 text-xs mb-0.5">Active</p>
+          <p className="text-blue-600 text-xs mb-0.5">Borrowed</p>
           <p className="text-2xl font-bold text-blue-700">
-            {transactions.filter((t) => t.status === "active").length}
+            {
+              transactions.filter(
+                (t) => t.status === "borrowed" || t.status === "return_pending"
+              ).length
+            }
           </p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
-          <p className="text-green-600 text-xs mb-0.5">Completed</p>
+          <p className="text-green-600 text-xs mb-0.5">Returned</p>
           <p className="text-2xl font-bold text-green-700">
-            {transactions.filter((t) => t.status === "completed").length}
+            {transactions.filter((t) => t.status === "returned").length}
           </p>
         </div>
         <div className="bg-red-50 rounded-lg p-3 border border-red-200 shadow-sm">
-          <p className="text-red-600 text-xs mb-0.5">Overdue</p>
+          <p className="text-red-600 text-xs mb-0.5">Rejected</p>
           <p className="text-2xl font-bold text-red-700">
-            {transactions.filter((t) => t.status === "overdue").length}
+            {transactions.filter((t) => t.status === "rejected").length}
           </p>
         </div>
       </div>
@@ -233,8 +262,15 @@ function OfficerTransactions() {
             />
           </div>
 
-          <div className="flex gap-2">
-            {["all", "active", "completed", "overdue"].map((status) => (
+          <div className="flex gap-2 flex-wrap">
+            {[
+              "all",
+              "pending",
+              "approved",
+              "borrowed",
+              "returned",
+              "rejected",
+            ].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
