@@ -1,0 +1,656 @@
+import React, { useState, useEffect } from "react";
+import Modal from "../../components/modals/Modal";
+import Toast from "../../components/Toast";
+import axiosInstance from "../../api/axiosInstance";
+
+function OfficerTransactions() {
+  // TODO: Replace with API call to fetch transactions from backend
+  // GET /api/admin/transactions
+  const [transactions, setTransactions] = useState([]);
+
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [sendingNotification, setSendingNotification] = useState(null);
+
+  // Fetch transactions from backend
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const response = await axiosInstance.get(
+          "/officer/get-all-transactions"
+        );
+        setTransactions(response.data);
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
+      }
+    };
+    fetchTransactions();
+  }, []);
+
+  const handleApprove = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        { status: "approved" }
+      );
+
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId ? { ...txn, status: "approved" } : txn
+        )
+      );
+      setToast({ message: "Request approved successfully!", type: "success" });
+    } catch (error) {
+      console.error("Error approving request:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to approve request",
+        type: "error",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleReject = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        { status: "rejected" }
+      );
+
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId ? { ...txn, status: "rejected" } : txn
+        )
+      );
+      setToast({ message: "Request rejected", type: "success" });
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to reject request",
+        type: "error",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleSendOverdueNotification = async (transactionId) => {
+    try {
+      setSendingNotification(transactionId);
+      await axiosInstance.post(
+        `/officer/send-overdue-notification/${transactionId}`
+      );
+      setToast({
+        message: "Overdue notification sent successfully!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to send notification",
+        type: "error",
+      });
+    } finally {
+      setSendingNotification(null);
+    }
+  };
+
+  const handleMarkReturned = async (transactionId) => {
+    try {
+      setUpdatingStatus(transactionId);
+      await axiosInstance.put(
+        `/officer/update-request-status/${transactionId}`,
+        {
+          status: "returned",
+        }
+      );
+
+      // Update local state
+      setTransactions(
+        transactions.map((txn) =>
+          txn._id === transactionId
+            ? { ...txn, status: "returned", actualReturnDate: new Date() }
+            : txn
+        )
+      );
+      setToast({ message: "Item marked as returned!", type: "success" });
+    } catch (error) {
+      console.error("Error updating transaction status:", error);
+      setToast({
+        message: error.response?.data?.message || "Failed to mark as returned",
+        type: "error",
+      });
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getStatusStyle = (status) => {
+    const styles = {
+      pending: "bg-yellow-100 text-yellow-700",
+      approved: "bg-blue-100 text-blue-700",
+      rejected: "bg-gray-100 text-gray-700",
+      borrowed: "bg-purple-100 text-purple-700",
+      return_pending: "bg-orange-100 text-orange-700",
+      returned: "bg-green-100 text-green-700",
+      overdue: "bg-red-100 text-red-700",
+    };
+    return styles[status] || "bg-gray-100 text-gray-700";
+  };
+
+  const filteredTransactions = transactions.filter((txn) => {
+    let matchesStatus = true;
+
+    if (filterStatus !== "all") {
+      // Map filter categories to actual database statuses
+      if (filterStatus === "pending") {
+        matchesStatus = txn.status === "pending";
+      } else if (filterStatus === "approved") {
+        matchesStatus = txn.status === "approved";
+      } else if (filterStatus === "borrowed") {
+        matchesStatus =
+          txn.status === "borrowed" || txn.status === "return_pending";
+      } else if (filterStatus === "returned") {
+        matchesStatus = txn.status === "returned";
+      } else if (filterStatus === "rejected") {
+        matchesStatus = txn.status === "rejected";
+      }
+    }
+
+    const matchesSearch =
+      (txn.borrowerId?.fullname || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (txn.itemId?.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (txn.requestCode || "").toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  return (
+    <section className="h-full w-full flex flex-col overflow-y-auto p-4 pb-16 bg-gray-50">
+      {/* Header */}
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Transaction History
+        </h1>
+        <p className="text-sm text-gray-600 mt-0.5">
+          View and manage all borrow transactions
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+          <p className="text-gray-500 text-xs mb-0.5">Total</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {transactions.length}
+          </p>
+        </div>
+        <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 shadow-sm">
+          <p className="text-yellow-600 text-xs mb-0.5">Pending</p>
+          <p className="text-2xl font-bold text-yellow-700">
+            {transactions.filter((t) => t.status === "pending").length}
+          </p>
+        </div>
+        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 shadow-sm">
+          <p className="text-blue-600 text-xs mb-0.5">Borrowed</p>
+          <p className="text-2xl font-bold text-blue-700">
+            {
+              transactions.filter(
+                (t) => t.status === "borrowed" || t.status === "return_pending"
+              ).length
+            }
+          </p>
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 border border-green-200 shadow-sm">
+          <p className="text-green-600 text-xs mb-0.5">Returned</p>
+          <p className="text-2xl font-bold text-green-700">
+            {transactions.filter((t) => t.status === "returned").length}
+          </p>
+        </div>
+        <div className="bg-red-50 rounded-lg p-3 border border-red-200 shadow-sm">
+          <p className="text-red-600 text-xs mb-0.5">Rejected</p>
+          <p className="text-2xl font-bold text-red-700">
+            {transactions.filter((t) => t.status === "rejected").length}
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by user, item, or transaction ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-(--accent) focus:border-(--accent)"
+            />
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            {[
+              "all",
+              "pending",
+              "approved",
+              "borrowed",
+              "returned",
+              "rejected",
+            ].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2.5 rounded-lg font-medium transition-all capitalize ${
+                  filterStatus === status
+                    ? "bg-(--accent) text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        <div className="overflow-y-auto max-h-[600px]">
+          <table className="w-full table-fixed">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[12%]">
+                  ID
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[17%]">
+                  User
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[14%]">
+                  Item
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[13%]">
+                  Borrow Date
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[13%]">
+                  Return Date
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[12%]">
+                  Status
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-[19%]">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredTransactions.map((txn) => (
+                <tr
+                  key={txn._id}
+                  onClick={() => {
+                    setSelectedTransaction(txn);
+                    setIsDetailsModalOpen(true);
+                  }}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <td className="px-4 py-4">
+                    <span className="font-mono text-sm font-medium text-gray-900 truncate block">
+                      {txn.requestCode}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={txn.borrowerId.profilePicture}
+                        alt={txn.borrowerId.fullname}
+                        className="w-8 h-8 rounded-full shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 text-sm truncate">
+                          {txn.borrowerId.fullname}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {txn.borrowerId?.email}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="font-medium text-gray-900 text-sm truncate">
+                      {txn.itemId.name}
+                    </p>
+                    <p className="text-xs text-gray-500">Qty: {txn.quantity}</p>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-900">
+                    {formatDate(txn.borrowDate)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="text-sm text-gray-900">
+                      {formatDate(txn.returnDate)}
+                    </p>
+                    {txn.actualReturnDate && (
+                      <p className="text-xs text-gray-500 truncate">
+                        Returned: {formatDate(txn.actualReturnDate)}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold inline-block ${getStatusStyle(
+                        txn.status
+                      )}`}
+                    >
+                      {txn.status.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex gap-1 flex-wrap">
+                      {/* Pending - Approve/Reject */}
+                      {txn.status === "pending" && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApprove(txn._id);
+                            }}
+                            disabled={updatingStatus === txn._id}
+                            className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingStatus === txn._id ? "..." : "Approve"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReject(txn._id);
+                            }}
+                            disabled={updatingStatus === txn._id}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingStatus === txn._id ? "..." : "Reject"}
+                          </button>
+                        </>
+                      )}
+
+                      {/* Borrowed - Check if overdue and show notify button */}
+                      {txn.status === "borrowed" && (
+                        <>
+                          {new Date(txn.returnDate) < new Date() && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendOverdueNotification(txn._id);
+                              }}
+                              disabled={sendingNotification === txn._id}
+                              className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {sendingNotification === txn._id
+                                ? "Sending..."
+                                : "Notify"}
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {/* Return Pending - Mark as Returned */}
+                      {txn.status === "return_pending" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkReturned(txn._id);
+                          }}
+                          disabled={updatingStatus === txn._id}
+                          className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {updatingStatus === txn._id ? "..." : "Mark Returned"}
+                        </button>
+                      )}
+
+                      {/* Returned */}
+                      {txn.status === "returned" && (
+                        <span className="text-gray-500 text-xs italic">
+                          Returned
+                        </span>
+                      )}
+
+                      {/* Approved/Rejected - No actions */}
+                      {(txn.status === "approved" ||
+                        txn.status === "rejected") && (
+                        <span className="text-gray-500 text-xs italic">
+                          {txn.status === "approved"
+                            ? "Awaiting pickup"
+                            : "No actions"}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false);
+          setSelectedTransaction(null);
+        }}
+        title="Transaction Details"
+        size="lg"
+      >
+        {selectedTransaction && (
+          <div className="p-6">
+            <div className="space-y-6">
+              {/* Transaction ID */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Transaction ID</p>
+                <p className="font-mono text-xl font-bold text-gray-900">
+                  {selectedTransaction.requestCode}
+                </p>
+              </div>
+
+              {/* User Info */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  User Information
+                </h3>
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <img
+                    src={
+                      selectedTransaction.borrowerId?.profilePicture ||
+                      "/default-avatar.png"
+                    }
+                    alt={selectedTransaction.borrowerId?.firstname || "User"}
+                    className="w-16 h-16 rounded-full"
+                  />
+                  <div>
+                    <p className="font-semibold text-lg text-gray-900">
+                      {selectedTransaction.borrowerId?.firstname +
+                        " " +
+                        selectedTransaction.borrowerId?.lastname || "N/A"}
+                    </p>
+                    <p className="text-gray-600">
+                      {selectedTransaction.borrowerId?.email || "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Item Info */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Item Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Item Name</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedTransaction.itemId.name}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Quantity</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedTransaction.quantity}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Purpose</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedTransaction.purpose || "Not specified"}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Status</p>
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
+                        selectedTransaction.status
+                      )}`}
+                    >
+                      {selectedTransaction.status.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Timeline</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-600 font-medium">
+                        Borrow Date
+                      </p>
+                      <p className="font-semibold text-blue-900">
+                        {formatDate(selectedTransaction.borrowDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs text-purple-600 font-medium">
+                        Expected Return Date
+                      </p>
+                      <p className="font-semibold text-purple-900">
+                        {formatDate(selectedTransaction.returnDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedTransaction.actualReturnDate && (
+                    <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-600 font-medium">
+                          Actual Return Date
+                        </p>
+                        <p className="font-semibold text-green-900">
+                          {formatDate(selectedTransaction.actualReturnDate)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+export default OfficerTransactions;

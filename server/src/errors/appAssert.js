@@ -1,7 +1,7 @@
-export const appAssert = (condition, message, statusCode) => {
+export function appAssert(condition, message, status = 400) {
   if (!condition) {
     const err = new Error(message);
-    err.status = statusCode;
+    err.status = status;
     throw err;
   }
-};
+}
