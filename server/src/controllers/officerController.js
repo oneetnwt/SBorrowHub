@@ -203,7 +203,7 @@ export const getOverdue = asyncHandler(async (req, res) => {
 
   // Calculate days overdue
   const loansWithOverdue = overdueLoans.map((loan) => {
-    const daysOverdue = Math.floor(
+    const daysOverdue = Math.ceil(
       (new Date() - new Date(loan.returnDate)) / (1000 * 60 * 60 * 24)
     );
     return {

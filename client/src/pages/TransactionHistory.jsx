@@ -47,6 +47,7 @@ function TransactionHistory() {
     { value: "pending", label: "Pending" },
     { value: "approved", label: "Approved" },
     { value: "borrowed", label: "Borrowed" },
+    { value: "overdue", label: "Overdue" },
     { value: "returned", label: "Returned" },
   ];
 
@@ -77,8 +78,15 @@ function TransactionHistory() {
   // Transform backend data to match display format
   const filteredTransactions = transactions
     .filter((txn) => {
+      // Check if transaction is overdue
+      const isOverdue =
+        txn.status === "borrowed" && new Date(txn.returnDate) < new Date();
+
       const matchesStatus =
-        selectedStatus === "all" || txn.status === selectedStatus;
+        selectedStatus === "all" ||
+        (selectedStatus === "overdue"
+          ? isOverdue
+          : txn.status === selectedStatus);
       const matchesSearch =
         txn.itemId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         txn.requestCode?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -239,10 +247,69 @@ function TransactionHistory() {
           <p className="text-gray-600 mt-1">Track your borrowing activities</p>
         </div>
 
-        {!isLoading && !error && (
+        {isLoading ? (
+          <>
+            {/* Stats Cards Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 animate-pulse"
+                >
+                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters Skeleton */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 animate-pulse">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="h-10 bg-gray-200 rounded-lg"></div>
+                </div>
+                <div className="flex gap-2">
+                  {[...Array(6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-10 bg-gray-200 rounded-lg w-24"
+                    ></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Transaction Cards Skeleton */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-pulse"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+                          <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="h-4 bg-gray-200 rounded w-24"></div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          <div className="h-4 bg-gray-200 rounded w-28"></div>
+                        </div>
+                      </div>
+                      <div className="h-10 bg-gray-200 rounded-lg w-32"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : !error ? (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                 <p className="text-sm text-gray-600 font-medium">
                   Total Transactions
@@ -267,6 +334,21 @@ function TransactionHistory() {
                 </p>
                 <p className="text-2xl font-bold text-purple-600 mt-1">
                   {transactions.filter((t) => t.status === "borrowed").length}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                <p className="text-sm text-gray-600 font-medium">
+                  Overdue Items
+                </p>
+                <p className="text-2xl font-bold text-red-600 mt-1">
+                  {
+                    transactions.filter(
+                      (t) =>
+                        t.status === "borrowed" &&
+                        new Date(t.returnDate) < new Date()
+                    ).length
+                  }
                 </p>
               </div>
 
@@ -672,6 +754,28 @@ function TransactionHistory() {
               )}
             </div>
           </>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-200 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg
+                className="w-10 h-10 text-red-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Error Loading Transactions
+            </h3>
+            <p className="text-gray-600">{error}</p>
+          </div>
         )}
       </section>
     </>

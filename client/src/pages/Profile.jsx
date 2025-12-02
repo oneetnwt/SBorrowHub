@@ -3,6 +3,7 @@ import { useUserStore } from "../store/user";
 import axiosInstance from "../api/axiosInstance";
 import { toast } from "react-hot-toast";
 import Loader from "../components/Loader";
+import { COLLEGE_DATA } from "../constants";
 
 function Profile() {
   const { user } = useUserStore();
@@ -69,10 +70,20 @@ function Profile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // If college changes, reset department
+    if (name === "college") {
+      setFormData((prev) => ({
+        ...prev,
+        college: value,
+        department: "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleImageChange = (e) => {
@@ -517,15 +528,20 @@ function Profile() {
                   {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
-                  <input
-                    type="text"
+                  <select
                     name="college"
                     value={formData.college}
                     onChange={handleChange}
                     required
                     className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent transition-shadow"
-                    placeholder="College name"
-                  />
+                  >
+                    <option value="">Select College</option>
+                    {Object.keys(COLLEGE_DATA).map((college) => (
+                      <option key={college} value={college}>
+                        {college}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <p className="px-3 py-2 text-sm bg-gray-50 rounded-lg border border-gray-100">
                     {user.college}
@@ -540,15 +556,26 @@ function Profile() {
                   {isEditing && <span className="text-red-500">*</span>}
                 </label>
                 {isEditing ? (
-                  <input
-                    type="text"
+                  <select
                     name="department"
                     value={formData.department}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent transition-shadow"
-                    placeholder="Department name"
-                  />
+                    disabled={!formData.college}
+                    className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-(--accent) focus:border-transparent transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {formData.college
+                        ? "Select Department"
+                        : "Select College First"}
+                    </option>
+                    {formData.college &&
+                      COLLEGE_DATA[formData.college]?.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                  </select>
                 ) : (
                   <p className="px-3 py-2 text-sm bg-gray-50 rounded-lg border border-gray-100">
                     {user.department}

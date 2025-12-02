@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import InformationCard from "../components/InformationCard";
 import axiosInstance from "../api/axiosInstance";
+import CardSkeleton from "../components/skeleton/CardSkeleton";
 
 function UserDashboard() {
   const [data, setData] = useState([]);
@@ -114,26 +115,42 @@ function UserDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <InformationCard
-          name="Active Borrows"
-          icon="inventory"
-          data={borrowedItems.length}
-        />
-        <InformationCard
-          name="Pending Request"
-          icon="borrow"
-          data={pendingRequests.length}
-        />
-        <InformationCard
-          name="Overdue Items"
-          icon="dashboard"
-          data={overdueItems.length}
-        />
-        <InformationCard
-          name="Returned this Month"
-          icon="history"
-          data={returnedThisMonth.length}
-        />
+        {loading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-lg shadow-sm border border-black/10 p-4 animate-pulse"
+              >
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <InformationCard
+              name="Active Borrows"
+              icon="inventory"
+              data={borrowedItems.length}
+            />
+            <InformationCard
+              name="Pending Request"
+              icon="borrow"
+              data={pendingRequests.length}
+            />
+            <InformationCard
+              name="Overdue Items"
+              icon="dashboard"
+              data={overdueItems.length}
+            />
+            <InformationCard
+              name="Returned this Month"
+              icon="history"
+              data={returnedThisMonth.length}
+            />
+          </>
+        )}
       </div>
 
       {/* Main Content */}
@@ -151,7 +168,25 @@ function UserDashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {pendingRequests.length > 0 ? (
+              {loading ? (
+                [...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex gap-3 border border-black/10 p-3 rounded-lg animate-pulse"
+                  >
+                    <div className="w-20 h-20 bg-gray-200 rounded-md shrink-0"></div>
+                    <div className="flex flex-col justify-between flex-1">
+                      <div>
+                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                      <div className="self-end">
+                        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : pendingRequests.length > 0 ? (
                 pendingRequests.slice(0, 3).map((request) => (
                   <div
                     key={request._id}
@@ -200,7 +235,25 @@ function UserDashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {borrowedItems.length > 0 ? (
+              {loading ? (
+                [...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex gap-3 border border-black/10 p-3 rounded-lg animate-pulse"
+                  >
+                    <div className="w-20 h-20 bg-gray-200 rounded-md shrink-0"></div>
+                    <div className="flex flex-col justify-between flex-1">
+                      <div>
+                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                      <div className="self-end">
+                        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : borrowedItems.length > 0 ? (
                 borrowedItems.slice(0, 3).map((borrow) => (
                   <div
                     key={borrow._id}
@@ -248,7 +301,20 @@ function UserDashboard() {
           <div className="md:col-span-2 bg-white rounded-lg shadow-sm border border-black/10 p-4">
             <h2 className="font-bold text-lg mb-4">Recent Activity</h2>
             <div className="space-y-3">
-              {recentActivities.length > 0 ? (
+              {loading ? (
+                [...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg animate-pulse"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))
+              ) : recentActivities.length > 0 ? (
                 recentActivities.slice(0, 3).map((activity) => (
                   <div
                     key={activity._id || activity.id}
