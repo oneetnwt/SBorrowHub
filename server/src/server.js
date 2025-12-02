@@ -16,6 +16,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import officerRoutes from "./routes/officerRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+import backupRoutes from "./routes/backupRoutes.js";
 import UserModel from "./models/user.js";
 
 // Import passport configuration (this registers the Google strategy)
@@ -59,6 +60,7 @@ app.use("/admin", adminRoutes);
 app.use("/officer", officerRoutes);
 app.use("/notification", notificationRoutes);
 app.use("/cart", cartRoutes);
+app.use("/backup", backupRoutes);
 
 // Error handler must be AFTER routes
 app.use(errorHandler);
@@ -69,11 +71,17 @@ const server = createServer(app);
 // WebSocket Server Setup
 const wss = new WebSocketServer({ server });
 
-// Store connected clients with their user IDs
+// Store connected clients with their user IDs and last activity
 const clients = new Map();
 
 wss.on("connection", (ws) => {
   console.log("New WebSocket connection");
+
+  // Set up heartbeat
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.on("message", async (message) => {
     try {
@@ -81,7 +89,7 @@ wss.on("connection", (ws) => {
 
       // Register user connection
       if (data.type === "register" && data.userId) {
-        clients.set(data.userId, ws);
+        clients.set(data.userId, { ws, lastActivity: Date.now() });
         console.log(`User ${data.userId} registered for notifications`);
 
         // Update user online status in database
@@ -106,6 +114,14 @@ wss.on("connection", (ws) => {
           count: activeUsersCount,
         });
       }
+
+      // Update last activity on any message
+      for (const [userId, client] of clients.entries()) {
+        if (client.ws === ws) {
+          client.lastActivity = Date.now();
+          break;
+        }
+      }
     } catch (err) {
       console.error("WebSocket message error:", err);
     }
@@ -114,7 +130,7 @@ wss.on("connection", (ws) => {
   ws.on("close", async () => {
     // Remove client from map and update database
     for (const [userId, client] of clients.entries()) {
-      if (client === ws) {
+      if (client.ws === ws) {
         clients.delete(userId);
         console.log(`User ${userId} disconnected`);
 
@@ -142,12 +158,30 @@ wss.on("connection", (ws) => {
   });
 });
 
+// Heartbeat interval to detect dead connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      // Connection is dead, terminate it
+      return ws.terminate();
+    }
+
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000); // Check every 30 seconds
+
+// Clean up interval on server shutdown
+wss.on("close", () => {
+  clearInterval(heartbeatInterval);
+});
+
 // Export function to send notifications to specific users
 export const sendNotificationToUser = (userId, notification) => {
-  const client = clients.get(userId.toString());
-  if (client && client.readyState === 1) {
+  const clientData = clients.get(userId.toString());
+  if (clientData && clientData.ws && clientData.ws.readyState === 1) {
     // 1 = OPEN
-    client.send(
+    clientData.ws.send(
       JSON.stringify({
         type: "notification",
         data: notification,
@@ -158,10 +192,10 @@ export const sendNotificationToUser = (userId, notification) => {
 
 // Export function to broadcast activity to all connected officers
 export const broadcastActivity = (message) => {
-  clients.forEach((client) => {
-    if (client.readyState === 1) {
+  clients.forEach((clientData) => {
+    if (clientData.ws && clientData.ws.readyState === 1) {
       // 1 = OPEN
-      client.send(JSON.stringify(message));
+      clientData.ws.send(JSON.stringify(message));
     }
   });
 };
@@ -173,9 +207,9 @@ const broadcastToAdmins = async (message) => {
     const adminIds = adminUsers.map((user) => user._id.toString());
 
     adminIds.forEach((adminId) => {
-      const client = clients.get(adminId);
-      if (client && client.readyState === 1) {
-        client.send(JSON.stringify(message));
+      const clientData = clients.get(adminId);
+      if (clientData && clientData.ws && clientData.ws.readyState === 1) {
+        clientData.ws.send(JSON.stringify(message));
       }
     });
   } catch (err) {

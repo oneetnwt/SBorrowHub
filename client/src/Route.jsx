@@ -30,6 +30,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPermissionControl from "./pages/admin/AdminPermissionControl";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminLog from "./pages/admin/AdminLog";
+import AdminBackup from "./pages/admin/AdminBackup";
 import UserHelp from "./pages/UserHelp";
 import OfficerHelp from "./pages/officer/OfficerHelp";
 import Error from "./pages/Error";
@@ -176,6 +177,10 @@ function Route() {
         {
           path: "logs",
           element: <AdminLog />,
+        },
+        {
+          path: "backup",
+          element: <AdminBackup />,
         },
       ],
     },

@@ -16,7 +16,7 @@ function AdminLog() {
         setLoading(true);
 
         const { status, data } = await axiosInstance.get(
-          "/admin/logs?limit=100&sort=-1"
+          "/admin/logs?&sort=-1"
         );
 
         // Handle new paginated response format

@@ -1,21 +1,9 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axiosInstance from "../api/axiosInstance";
+import { Link } from "react-router-dom";
 import { useUserStore } from "../store/user";
 
-function Dropdown({ menu = [] }) {
+function Dropdown({ menu = [], onLogout }) {
   const { user } = useUserStore();
-  const setUser = useUserStore((state) => state.setUser);
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    const res = await axiosInstance.post("/auth/logout");
-
-    if (res.status === 200) {
-      setUser(null);
-      navigate("/auth/login");
-    }
-  };
 
   return (
     <div className="absolute right-0 mt-3 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden animate-fadeIn">
@@ -59,7 +47,7 @@ function Dropdown({ menu = [] }) {
       <div className="border-t border-gray-200">
         <button
           className="w-full flex items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          onClick={handleLogout}
+          onClick={onLogout}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

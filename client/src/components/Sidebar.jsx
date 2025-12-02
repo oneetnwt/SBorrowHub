@@ -4,10 +4,12 @@ import Logo from "./icons/Logo";
 import { useUserStore } from "../store/user";
 import { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import ConfirmModal from "./modals/ConfirmModal";
 
 function Sidebar({ role = "user" }) {
   const { user, setUser } = useUserStore();
   const [loading, setLoading] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navigate = useNavigate();
 
   const handleNavigate = () => {
@@ -23,6 +25,7 @@ function Sidebar({ role = "user" }) {
       icon: "key",
     },
     { name: "Users", to: "/admin/users", icon: "users" },
+    { name: "Backup", to: "/admin/backup", icon: "box" },
   ];
 
   const officerLinks = [
@@ -43,7 +46,8 @@ function Sidebar({ role = "user" }) {
       ? adminLinks
       : userLinks;
 
-  const handleLogout = async () => {
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
     setLoading(true);
     try {
       await axiosInstance.post("/auth/logout");
@@ -57,6 +61,10 @@ function Sidebar({ role = "user" }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
   };
 
   return (
@@ -203,6 +211,17 @@ function Sidebar({ role = "user" }) {
           </p>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to login again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+      />
     </aside>
   );
 }

@@ -4,19 +4,41 @@ import TopbarLink from "./TopbarLink";
 import Dropdown from "./Dropdown";
 import Notification from "./icons/Notification";
 import NotificationModal from "./modals/Notification";
+import ConfirmModal from "./modals/ConfirmModal";
 import Box from "./icons/Box";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "../store/user";
 import axiosInstance from "../api/axiosInstance";
 import useWebSocket from "../hooks/useWebSocket";
 
 function Topbar() {
   const { user } = useUserStore();
+  const setUser = useUserStore((state) => state.setUser);
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
   const { lastMessage } = useWebSocket(user?._id);
+
+  const handleLogoutClick = () => {
+    setShowDropdown(false);
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    try {
+      await axiosInstance.post("/auth/logout");
+      setUser(null);
+      navigate("/auth/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      setUser(null);
+      navigate("/auth/login");
+    }
+  };
 
   // Fetch unread notification count
   useEffect(() => {
@@ -110,14 +132,15 @@ function Topbar() {
           )}
           {showDropdown && (
             <Dropdown
+              onLogout={handleLogoutClick}
               menu={[
+                { name: "View Profile", to: "/profile" },
                 ...(user?.role === "officer"
                   ? [{ name: "Officer Panel", to: "/officer" }]
                   : []),
                 ...(user?.role === "admin"
                   ? [{ name: "Admin Panel", to: "/admin" }]
                   : []),
-                { name: "View Profile", to: "/profile" },
                 { name: "View Transaction", to: "/profile/transactions" },
                 { name: "Help & Support", to: "/help" },
               ]}
@@ -125,6 +148,17 @@ function Topbar() {
           )}
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to login again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+      />
     </header>
   );
 }

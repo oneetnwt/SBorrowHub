@@ -7,6 +7,7 @@ import {
   getUptime,
   updateUserRole,
   getDashboardStats,
+  getSystemInfo,
 } from "../controllers/adminController.js";
 
 const router = Router();
@@ -17,5 +18,6 @@ router.get("/officer", getAllOfficer);
 router.get("/logs", getLogs);
 router.get("/uptime", getUptime);
 router.get("/dashboard-stats", getDashboardStats);
+router.get("/system-info", getSystemInfo);
 
 export default router;
