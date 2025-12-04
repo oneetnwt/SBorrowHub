@@ -8,10 +8,18 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:5000/auth/google/callback",
+      callbackURL: `${
+        process.env.BACKEND_URL || "http://localhost:5000"
+      }/auth/google/callback`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        console.log(
+          "Google OAuth - Profile received:",
+          profile.id,
+          profile.emails[0].value
+        );
+
         const email = profile.emails[0].value;
 
         // Find existing user by email or googleId
@@ -19,8 +27,14 @@ passport.use(
           $or: [{ email }, { googleId: profile.id }],
         });
 
+        console.log(
+          "Google OAuth - User found:",
+          user ? user._id : "No user found"
+        );
+
         if (!user) {
           // User not found - return false to trigger failure redirect
+          console.log("Google OAuth - No account found, redirecting to signup");
           return done(null, false, {
             message: "No account found. Please sign up first.",
             redirectToSignup: true,
@@ -29,11 +43,13 @@ passport.use(
 
         // Link Google account if not already linked
         if (!user.googleId) {
+          console.log("Google OAuth - Linking Google account to user");
           user.googleId = profile.id;
           user.profilePicture = user.profilePicture || profile.photos[0]?.value;
           await user.save();
         }
 
+        console.log("Google OAuth - Authentication successful");
         done(null, user);
       } catch (err) {
         console.error("Google Strategy Error:", err);

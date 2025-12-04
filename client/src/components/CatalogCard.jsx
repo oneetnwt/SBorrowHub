@@ -88,7 +88,7 @@ function CatalogCard({
               Adding...
             </>
           ) : (
-            "Add Item"
+            "Add to Cart"
           )}
         </button>
         <button

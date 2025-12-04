@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import Lock from "../components/icons/Lock";
 import Person from "../components/icons/Person";
 import axiosInstance from "../api/axiosInstance";
@@ -8,6 +9,7 @@ import { useUserStore } from "../store/user";
 function Login() {
   const navigate = useNavigate();
   const setUser = useUserStore((state) => state.setUser);
+  const recaptchaRef = useRef(null);
   const [formData, setFormData] = useState({
     user: "",
     password: "",
@@ -17,6 +19,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -29,6 +32,14 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+
+    // Validate reCAPTCHA
+    const recaptchaValue = recaptchaRef.current?.getValue();
+    if (!recaptchaValue) {
+      setErrorMsg("Please complete the reCAPTCHA verification");
+      return;
+    }
+
     setLoading(true);
     try {
       const { status, data } = await axiosInstance.post(
@@ -47,12 +58,17 @@ function Login() {
         error.response?.data?.message || "Login failed. Please try again.";
       setErrorMsg(msg);
       setLoading(false);
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     }
   };
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = "http://localhost:5000/auth/google";
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (
@@ -175,6 +191,11 @@ function Login() {
             {errorMsg}
           </div>
         )}
+
+        {/* reCAPTCHA */}
+        <div className="flex justify-left">
+          <ReCAPTCHA ref={recaptchaRef} sitekey={siteKey} theme="light" />
+        </div>
 
         {/* Submit Button */}
         <button
