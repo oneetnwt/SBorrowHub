@@ -99,7 +99,11 @@ export const logout = asyncHandler(async (req, res) => {
     await UserModel.findByIdAndUpdate(req.user._id, { isOnline: false });
   }
 
-  res.clearCookie("jwt");
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
+    secure: process.env.NODE_ENV !== "development",
+  });
   res.status(200).json({ message: "Logout successful" });
 });
 
@@ -347,7 +351,11 @@ export const verifyCode = asyncHandler(async (req, res) => {
   const isMatch = otp.toString() === req.cookies.otp;
   appAssert(isMatch, "Invalid Code", 401);
 
-  res.clearCookie("otp");
+  res.clearCookie("otp", {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
+    secure: process.env.NODE_ENV !== "development",
+  });
 
   res.status(200).json({ message: "Code Verified" });
 });
@@ -376,8 +384,14 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.password = hashed;
   await user.save();
 
-  res.clearCookie("otp");
-  res.clearCookie("resetUserId");
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
+    secure: process.env.NODE_ENV !== "development",
+  };
+
+  res.clearCookie("otp", cookieOptions);
+  res.clearCookie("resetUserId", cookieOptions);
 
   res.status(200).json({ message: "Password reset successfully" });
 });
