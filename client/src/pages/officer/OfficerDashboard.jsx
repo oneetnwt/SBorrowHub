@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import Loader from "../../components/Loader";
 import Toast from "../../components/Toast";
+import Modal from "../../components/modals/Modal";
 import useWebSocket from "../../hooks/useWebSocket";
 import { useUserStore } from "../../store/user";
 
@@ -34,6 +35,9 @@ function OfficerDashboard() {
   const [loadingRequests, setLoadingRequests] = useState(new Set());
   const [sendingNotification, setSendingNotification] = useState(null);
   const [toast, setToast] = useState(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Fetch dashboard stats independently
   useEffect(() => {
@@ -184,16 +188,40 @@ function OfficerDashboard() {
   };
 
   // Handle reject request
-  const handleReject = async (requestId) => {
-    setLoadingRequests((prev) => new Set(prev).add(requestId));
-    try {
-      await axiosInstance.put(`/officer/update-request-status/${requestId}`, {
-        status: "rejected",
+  const openRejectModal = (requestId) => {
+    setSelectedRequestId(requestId);
+    setRejectModalOpen(true);
+    setRejectionReason("");
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalOpen(false);
+    setSelectedRequestId(null);
+    setRejectionReason("");
+  };
+
+  const handleReject = async () => {
+    if (!rejectionReason.trim()) {
+      setToast({
+        message: "Please provide a reason for rejection",
+        type: "error",
       });
+      return;
+    }
+
+    setLoadingRequests((prev) => new Set(prev).add(selectedRequestId));
+    try {
+      await axiosInstance.put(
+        `/officer/update-request-status/${selectedRequestId}`,
+        {
+          status: "rejected",
+          rejectionReason: rejectionReason.trim(),
+        }
+      );
 
       // Manually update the UI
       setPendingApprovals((prev) =>
-        prev.filter((req) => req._id !== requestId)
+        prev.filter((req) => req._id !== selectedRequestId)
       );
 
       // Update stats
@@ -206,6 +234,8 @@ function OfficerDashboard() {
         message: "Request rejected successfully!",
         type: "success",
       });
+
+      closeRejectModal();
     } catch (error) {
       console.error("Error rejecting request:", error);
       setToast({
@@ -217,7 +247,7 @@ function OfficerDashboard() {
     } finally {
       setLoadingRequests((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(requestId);
+        newSet.delete(selectedRequestId);
         return newSet;
       });
     }
@@ -689,7 +719,7 @@ function OfficerDashboard() {
                             Approve
                           </button>
                           <button
-                            onClick={() => handleReject(request._id)}
+                            onClick={() => openRejectModal(request._id)}
                             disabled={loadingRequests.has(request._id)}
                             className="px-3 py-1.5 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-xs rounded-md font-medium transition-colors flex items-center gap-1.5"
                           >
@@ -1135,6 +1165,80 @@ function OfficerDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Rejection Modal */}
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={closeRejectModal}
+        title="Reject Borrow Request"
+        size="sm"
+      >
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-4">
+            Please provide a reason for rejecting this request. This will be
+            visible to the user.
+          </p>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rejection Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g., Item is currently unavailable, insufficient information provided, etc."
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+              disabled={loadingRequests.has(selectedRequestId)}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {rejectionReason.length}/500 characters
+            </p>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={closeRejectModal}
+              disabled={loadingRequests.has(selectedRequestId)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={
+                loadingRequests.has(selectedRequestId) ||
+                !rejectionReason.trim()
+              }
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              {loadingRequests.has(selectedRequestId) && (
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              )}
+              Reject Request
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Toast Notification */}
       {toast && (

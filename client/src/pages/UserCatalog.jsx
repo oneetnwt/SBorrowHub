@@ -150,6 +150,13 @@ function UserCatalog() {
       });
     }
 
+    // Sort to show unavailable items at the end
+    result.sort((a, b) => {
+      const aAvailable = a.available > 0 ? 1 : 0;
+      const bAvailable = b.available > 0 ? 1 : 0;
+      return bAvailable - aAvailable; // Available items first
+    });
+
     return result;
   };
 
@@ -280,6 +287,7 @@ function UserCatalog() {
                   onBorrowClick={() => handleBorrowClick(item)}
                   onAddToCart={() => handleAddToCart(item)}
                   isAddingToCart={addingToCart === item._id}
+                  isAvailable={item.available > 0}
                 />
               ))
             ) : (

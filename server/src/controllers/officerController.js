@@ -35,7 +35,7 @@ export const getAllItems = asyncHandler(async (req, res) => {
 });
 
 export const updateRequestStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, rejectionReason } = req.body;
   const { id } = req.params;
 
   appAssert(status, "No status provided", 400);
@@ -51,6 +51,15 @@ export const updateRequestStatus = asyncHandler(async (req, res) => {
     "returned",
   ];
   appAssert(validStatuses.includes(status), "Invalid status value", 400);
+
+  // Validate rejection reason if status is rejected
+  if (status === "rejected") {
+    appAssert(
+      rejectionReason && rejectionReason.trim(),
+      "Rejection reason is required",
+      400
+    );
+  }
 
   // Find and update borrow request
   const borrowRequest = await BorrowRequestModel.findById(id)
@@ -80,6 +89,9 @@ export const updateRequestStatus = asyncHandler(async (req, res) => {
 
   // Update request status
   borrowRequest.status = status;
+  if (status === "rejected" && rejectionReason) {
+    borrowRequest.rejectionReason = rejectionReason;
+  }
   await borrowRequest.save();
 
   // Update item availability based on status changes
@@ -102,7 +114,9 @@ export const updateRequestStatus = asyncHandler(async (req, res) => {
 
   const notificationDescriptions = {
     approved: `Your request for ${borrowRequest.itemId.name} has been approved`,
-    rejected: `Your request for ${borrowRequest.itemId.name} has been rejected`,
+    rejected: `Your request for ${borrowRequest.itemId.name} has been rejected${
+      rejectionReason ? `. Reason: ${rejectionReason}` : ""
+    }`,
     borrowed: `You have borrowed ${borrowRequest.itemId.name}`,
     returned: `You have returned ${borrowRequest.itemId.name}`,
   };

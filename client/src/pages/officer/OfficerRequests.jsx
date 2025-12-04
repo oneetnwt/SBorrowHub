@@ -65,38 +65,45 @@ function OfficerRequests() {
 
   const handleApprove = async () => {
     try {
-      const response = await axiosInstance.patch(
-        `/officer/borrow-requests/${selectedRequest._id}`,
+      await axiosInstance.put(
+        `/officer/update-request-status/${selectedRequest._id}`,
         { status: "approved" }
       );
-      setRequests(
-        requests.map((req) =>
-          req._id === selectedRequest._id ? response.data : req
-        )
-      );
+
+      // Refresh requests
+      const response = await axiosInstance.get("/officer/get-all-transactions");
+      setRequests(response.data);
+
       setIsApproveModalOpen(false);
       setSelectedRequest(null);
     } catch (error) {
       console.error("Error approving request:", error);
+      alert(error.response?.data?.message || "Failed to approve request");
     }
   };
 
   const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+
     try {
-      const response = await axiosInstance.patch(
-        `/officer/borrow-requests/${selectedRequest._id}`,
-        { status: "rejected", reason: rejectReason }
+      await axiosInstance.put(
+        `/officer/update-request-status/${selectedRequest._id}`,
+        { status: "rejected", rejectionReason: rejectReason }
       );
-      setRequests(
-        requests.map((req) =>
-          req._id === selectedRequest._id ? response.data : req
-        )
-      );
+
+      // Refresh requests
+      const response = await axiosInstance.get("/officer/get-all-transactions");
+      setRequests(response.data);
+
       setIsRejectModalOpen(false);
       setSelectedRequest(null);
       setRejectReason("");
     } catch (error) {
       console.error("Error rejecting request:", error);
+      alert(error.response?.data?.message || "Failed to reject request");
     }
   };
 
@@ -191,7 +198,7 @@ function OfficerRequests() {
                         request.status
                       )}`}
                     >
-                      {request.status.toUpperCase()}
+                      {request.status?.toUpperCase() || "N/A"}
                     </span>
                   </div>
                 </div>
@@ -313,7 +320,7 @@ function OfficerRequests() {
 
                 {/* Request Date */}
                 <p className="text-xs text-gray-400 mt-3">
-                  Requested on {request.requestDate}
+                  Requested on {formatDate(request.createdAt)}
                 </p>
               </div>
             </div>
@@ -361,7 +368,7 @@ function OfficerRequests() {
           <div className="p-6">
             <div className="flex items-start gap-4 mb-6">
               <img
-                src={selectedRequest.borrowerId.avatar}
+                src={selectedRequest.borrowerId.profilePicture}
                 alt={
                   selectedRequest.borrowerId.fullname ||
                   selectedRequest.borrowerId.name
@@ -384,7 +391,7 @@ function OfficerRequests() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Item</p>
                   <p className="font-semibold text-lg text-gray-900">
-                    {selectedRequest.item}
+                    {selectedRequest.itemId.name}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -399,13 +406,13 @@ function OfficerRequests() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Borrow Date</p>
                   <p className="font-semibold text-gray-900">
-                    {selectedRequest.borrowDate}
+                    {formatDate(selectedRequest.borrowDate)}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Return Date</p>
                   <p className="font-semibold text-gray-900">
-                    {selectedRequest.returnDate}
+                    {formatDate(selectedRequest.returnDate)}
                   </p>
                 </div>
               </div>
@@ -415,33 +422,33 @@ function OfficerRequests() {
                 <p className="text-gray-900">{selectedRequest.purpose}</p>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Urgency</p>
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getUrgencyStyle(
-                      selectedRequest.urgency
-                    )}`}
-                  >
-                    {selectedRequest.urgency.toUpperCase()}
-                  </span>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Status</p>
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
-                      selectedRequest.status
-                    )}`}
-                  >
-                    {selectedRequest.status.toUpperCase()}
-                  </span>
-                </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Status</p>
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
+                    selectedRequest.status
+                  )}`}
+                >
+                  {selectedRequest.status?.toUpperCase() || "N/A"}
+                </span>
               </div>
+
+              {selectedRequest.status === "rejected" &&
+                selectedRequest.rejectionReason && (
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-600 mb-1">
+                      Rejection Reason
+                    </p>
+                    <p className="text-sm text-red-900">
+                      {selectedRequest.rejectionReason}
+                    </p>
+                  </div>
+                )}
 
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-xs text-blue-600 mb-1">Request Submitted</p>
                 <p className="font-medium text-blue-900">
-                  {selectedRequest.requestDate}
+                  {formatDate(selectedRequest.createdAt)}
                 </p>
               </div>
             </div>
@@ -455,7 +462,9 @@ function OfficerRequests() {
         onClose={() => setIsApproveModalOpen(false)}
         onConfirm={handleApprove}
         title="Approve Request"
-        message={`Approve borrow request for "${selectedRequest?.item}" by ${
+        message={`Approve borrow request for "${
+          selectedRequest?.itemId.name
+        }" by ${
           selectedRequest?.borrowerId?.fullname ||
           selectedRequest?.borrowerId?.name
         }?`}
