@@ -31,6 +31,7 @@ const borrowRequestSchema = mongoose.Schema(
       ],
       default: "pending",
     },
+    rejectionReason: { type: String, default: "" },
     notes: { type: String, default: "" },
   },
   { timestamps: true }

@@ -8,18 +8,44 @@ function CatalogCard({
   onBorrowClick,
   onAddToCart,
   isAddingToCart = false,
+  isAvailable = true,
 }) {
   return (
-    <div className="w-full rounded-md shadow-sm p-3 bg-white border border-black/10 hover:shadow-md transition-all">
+    <div
+      className={`w-full rounded-md shadow-sm p-3 bg-white border hover:shadow-md transition-all relative ${
+        isAvailable ? "border-black/10" : "border-red-200 bg-gray-50"
+      }`}
+    >
+      {/* Unavailable Badge */}
+      {!isAvailable && (
+        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">
+          Not Available
+        </div>
+      )}
+
       <img
         src={image}
         alt={name}
-        className="w-full h-40 object-cover rounded-md"
+        className={`w-full h-40 object-cover rounded-md ${
+          !isAvailable ? "opacity-60 grayscale" : ""
+        }`}
       />
-      <h3 className="font-medium text-md my-3">{name}</h3>
+      <h3
+        className={`font-medium text-md my-3 ${
+          !isAvailable ? "text-gray-500" : ""
+        }`}
+      >
+        {name}
+      </h3>
       <span>
         <h6 className="text-sm text-gray-500">Available</h6>
-        <p className="text-sm font-medium">{quantity}</p>
+        <p
+          className={`text-sm font-medium ${
+            !isAvailable ? "text-red-600" : ""
+          }`}
+        >
+          {quantity}
+        </p>
       </span>
       <div className="my-3 pt-3 flex items-center gap-3 border-t border-black/10">
         {tags &&
@@ -35,8 +61,8 @@ function CatalogCard({
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={onAddToCart}
-          disabled={isAddingToCart}
-          className="text-sm w-full mt-3 p-2 border border-(--accent) hover:border-(--accent-dark) rounded-sm text-(--accent) hover:text-(--accent-dark) font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          disabled={isAddingToCart || !isAvailable}
+          className="text-sm w-full mt-3 p-2 border border-(--accent) hover:border-(--accent-dark) rounded-sm text-(--accent) hover:text-(--accent-dark) font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 flex items-center justify-center gap-2"
         >
           {isAddingToCart ? (
             <>
@@ -67,7 +93,8 @@ function CatalogCard({
         </button>
         <button
           onClick={onBorrowClick}
-          className="text-sm w-full mt-3 p-2 bg-(--accent) hover:bg-(--accent-dark) rounded-sm text-white font-medium transition-colors"
+          disabled={!isAvailable}
+          className="text-sm w-full mt-3 p-2 bg-(--accent) hover:bg-(--accent-dark) rounded-sm text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
         >
           Borrow Item
         </button>

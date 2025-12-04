@@ -40,7 +40,7 @@ function RequestForm({ isOpen, onClose, item }) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "quantity" ? parseInt(value) || "" : value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
@@ -204,7 +204,7 @@ function RequestForm({ isOpen, onClose, item }) {
                 )}
                 {item?.quantity && (
                   <p className="text-gray-500 text-xs mt-0.5">
-                    Available: {item.quantity}
+                    Available: {item.available}
                   </p>
                 )}
               </div>

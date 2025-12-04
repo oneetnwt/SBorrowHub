@@ -704,7 +704,10 @@ function TransactionHistory() {
                               </div>
 
                               {/* Purpose & Notes */}
-                              {(txn.purpose || txn.notes) && (
+                              {(txn.purpose ||
+                                txn.notes ||
+                                (txn.status === "rejected" &&
+                                  txn.rejectionReason)) && (
                                 <div className="md:col-span-2 bg-white rounded-lg p-4 border border-gray-200">
                                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                     <svg
@@ -722,6 +725,17 @@ function TransactionHistory() {
                                     </svg>
                                     Additional Information
                                   </h4>
+                                  {txn.status === "rejected" &&
+                                    txn.rejectionReason && (
+                                      <div className="mb-3">
+                                        <p className="text-sm text-red-600 mb-1 font-semibold">
+                                          Rejection Reason
+                                        </p>
+                                        <p className="text-sm text-red-900 bg-red-50 p-3 rounded-lg border border-red-200">
+                                          {txn.rejectionReason}
+                                        </p>
+                                      </div>
+                                    )}
                                   {txn.purpose && (
                                     <div className="mb-3">
                                       <p className="text-sm text-gray-600 mb-1">
